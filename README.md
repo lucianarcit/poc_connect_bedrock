@@ -156,16 +156,17 @@ python -m pytest tests/unit/test_mcp_tools.py -v
 |------|-----------|--------|
 | 1 | Arquitetura e validação | ✅ Concluída |
 | 2 | MCP local | ✅ Concluída |
-| 3 | Lambdas | 🔲 Pendente |
-| 4 | Terraform | 🔲 Pendente |
+| 3 | Lambdas | ✅ Concluída |
+| 4 | Terraform | ✅ Concluída (fmt/validate/plan pendentes) |
 | 5 | Amazon Connect | 🔲 Pendente |
-| 6 | Documentação | 🔲 Pendente |
+| 6 | Documentação | 🔄 Em andamento |
 
 ## Documentação
 
+- **[📋 Manual Completo de Implantação](docs/DEPLOYMENT_GUIDE.md)** — Guia passo a passo para deploy, teste e remoção
+- [Checklist de Deploy](docs/DEPLOYMENT_CHECKLIST.md) — Versão reduzida para impressão
+- [Recursos Manuais](docs/MANUAL_RESOURCES.md) — O que o Terraform NÃO cria
+- [Troubleshooting](docs/TROUBLESHOOTING.md) — Problemas comuns e soluções
 - [Arquitetura](ARCHITECTURE.md)
-- [Segurança](SECURITY.md)
 - [Custos](COSTS.md)
-- [Troubleshooting](docs/troubleshooting.md)
-- [Deploy](docs/deployment.md)
 - [DLQ Runbook](docs/dlq-runbook.md)

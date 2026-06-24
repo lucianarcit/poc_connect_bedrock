@@ -266,8 +266,10 @@ class TestInitializeLeaseExpired:
                     "initialization_lease_expires_at": {"N": str(expired_lease)},
                 }
             })
-            # put_item → reserva (condição permite overwrite de INITIALIZING)
-            ds.add_response("put_item", {})
+            # put_item → ConditionalCheckFailed (item existe)
+            ds.add_client_error("put_item", service_error_code="ConditionalCheckFailedException")
+            # update_item → reassumir lease OK
+            ds.add_response("update_item", {})
             # APIs Connect
             cs.add_response("start_contact_streaming", {"StreamingId": "s-002"})
             cs.add_response("create_participant", {

@@ -230,8 +230,8 @@ class InitializerService:
         """
         Reserva sessão INITIALIZING com lease no DynamoDB.
 
-        Usa PutItem condicional ou UpdateItem para lease expirado.
-        Armazena ClientTokens determinísticos.
+        - NOT_FOUND: PutItem condicional (attribute_not_exists)
+        - INITIALIZING_LEASE_EXPIRED: UpdateItem condicional verificando status + lease antigo
         """
         now = int(time.time())
         lease_expires = now + self._lease_seconds
@@ -241,7 +241,9 @@ class InitializerService:
             ctx.instance_id, ctx.contact_id, self._sns_topic_arn
         )
         participant_token = generate_participant_client_token(ctx.instance_id, ctx.contact_id)
+        tokens = {"streaming": streaming_token, "participant": participant_token}
 
+        # Primeiro tentar PutItem para sessão nova
         try:
             self._dynamodb.put_item(
                 TableName=self._table_name,
@@ -249,8 +251,8 @@ class InitializerService:
                     "pk": {"S": f"CONTACT#{ctx.contact_id}"},
                     "contact_id": {"S": ctx.contact_id},
                     "participant_id": {"S": ""},
-                    "participant_token_encrypted": {"B": b""},
-                    "connection_token_encrypted": {"B": b""},
+                    "participant_token_encrypted": {"B": b"\x00"},
+                    "connection_token_encrypted": {"B": b"\x00"},
                     "connection_token_expiry": {"S": ""},
                     "streaming_id": {"S": ""},
                     "status": {"S": SessionStatus.INITIALIZING.value},
@@ -263,17 +265,45 @@ class InitializerService:
                     "last_message_id": {"S": ""},
                     "handoff_requested": {"BOOL": False},
                 },
-                ConditionExpression="attribute_not_exists(pk) OR #s = :init",
-                ExpressionAttributeNames={"#s": "status"},
-                ExpressionAttributeValues={":init": {"S": SessionStatus.INITIALIZING.value}},
+                ConditionExpression="attribute_not_exists(pk)",
             )
+            return tokens
+        except ClientError as e:
+            code = e.response["Error"]["Code"]
+            if code != "ConditionalCheckFailedException":
+                raise
+
+        # Item existe — tentar reassumir com UpdateItem condicional
+        # Verifica status=INITIALIZING E lease <= now (expirado)
+        try:
+            self._dynamodb.update_item(
+                TableName=self._table_name,
+                Key={"pk": {"S": f"CONTACT#{ctx.contact_id}"}},
+                UpdateExpression=(
+                    "SET #status = :status, "
+                    "initialization_lease_expires_at = :new_lease, "
+                    "streaming_client_token = :st, "
+                    "participant_client_token = :pt, "
+                    "updated_at = :updated"
+                ),
+                ExpressionAttributeNames={"#status": "status"},
+                ExpressionAttributeValues={
+                    ":status": {"S": SessionStatus.INITIALIZING.value},
+                    ":new_lease": {"N": str(lease_expires)},
+                    ":st": {"S": streaming_token},
+                    ":pt": {"S": participant_token},
+                    ":updated": {"S": now_iso},
+                    ":init": {"S": SessionStatus.INITIALIZING.value},
+                    ":now": {"N": str(now)},
+                },
+                ConditionExpression="#status = :init AND initialization_lease_expires_at <= :now",
+            )
+            return tokens
         except ClientError as e:
             code = e.response["Error"]["Code"]
             if code == "ConditionalCheckFailedException":
-                raise RuntimeError("Session reservation conflict — another instance may be active")
+                raise RuntimeError("Session reservation conflict — lease taken by another instance")
             raise
-
-        return {"streaming": streaming_token, "participant": participant_token}
 
     def _start_streaming(self, ctx: InitializationContext, client_token: str) -> str:
         """Inicia streaming de mensagens para o SNS."""

@@ -32,10 +32,13 @@ from integrator.exceptions import (
     EventParsingError,
 )
 from integrator.idempotency_repository import IdempotencyRepository
+from integrator.logging_config import configure_json_logging
 from integrator.processor import MessageProcessor
 
+# Configurar logging JSON no cold start
+configure_json_logging()
+
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
 
 _dynamodb_client = None
 _cp_client = None

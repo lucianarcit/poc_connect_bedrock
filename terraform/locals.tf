@@ -9,12 +9,12 @@ locals {
   })
 
   # Nomes de recursos
-  sns_topic_name       = "${local.name}-streaming"
-  sqs_queue_name       = "${local.name}-messages"
-  sqs_dlq_name         = "${local.name}-messages-dlq"
-  sessions_table_name  = "${local.name}-sessions"
-  idemp_table_name     = "${local.name}-idempotency"
-  kms_alias            = "alias/${local.name}-tokens"
+  sns_topic_name      = "${local.name}-streaming"
+  sqs_queue_name      = "${local.name}-messages"
+  sqs_dlq_name        = "${local.name}-messages-dlq"
+  sessions_table_name = "${local.name}-sessions"
+  idemp_table_name    = "${local.name}-idempotency"
+  kms_alias           = "alias/${local.name}-tokens"
 
   # Lambdas
   initializer_name = "${local.name}-initializer"

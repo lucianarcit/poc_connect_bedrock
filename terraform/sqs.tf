@@ -2,13 +2,13 @@
 
 resource "aws_sqs_queue" "messages" {
   name                       = local.sqs_queue_name
-  visibility_timeout_seconds = var.sqs_visibility_timeout       # 360s (6x Lambda timeout)
-  message_retention_seconds  = local.sqs_retention_seconds      # 4 dias
-  receive_wait_time_seconds  = 20                               # Long polling
+  visibility_timeout_seconds = var.sqs_visibility_timeout  # 360s (6x Lambda timeout)
+  message_retention_seconds  = local.sqs_retention_seconds # 4 dias
+  receive_wait_time_seconds  = 20                          # Long polling
 
   redrive_policy = jsonencode({
     deadLetterTargetArn = aws_sqs_queue.dlq.arn
-    maxReceiveCount     = var.sqs_max_receive_count             # 3
+    maxReceiveCount     = var.sqs_max_receive_count # 3
   })
 }
 
@@ -16,7 +16,7 @@ resource "aws_sqs_queue" "messages" {
 
 resource "aws_sqs_queue" "dlq" {
   name                      = local.sqs_dlq_name
-  message_retention_seconds = local.dlq_retention_seconds       # 14 dias
+  message_retention_seconds = local.dlq_retention_seconds # 14 dias
 }
 
 # --- SQS Policy: Permitir SNS publicar na fila principal ---

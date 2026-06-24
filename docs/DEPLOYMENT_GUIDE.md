@@ -4,8 +4,8 @@
 > - `terraform fmt` — ✅ concluído
 > - `terraform init` — ✅ concluído
 > - `terraform validate` — ✅ concluído
-> - `terraform plan` — ✅ concluído (33 to add, 0 to change, 0 to destroy)
-> - `terraform apply` — ❌ não executado
+> - `terraform plan` — ⏳ pendente (IAM roles corrigidas; requer novo plan)
+> - `terraform apply` — parcial (recursos base criados; 3 IAM roles + 3 Lambdas + Function URL + Event Source pendentes)
 > - Lambda Initializer — ❌ ainda não criada na AWS
 > - Lambda autorizada no Connect — ❌ pendente (requer apply primeiro)
 > - Contact Flow — ❌ ainda não criado
@@ -90,9 +90,9 @@ Falhas:
 | 3 | `aws_lambda_function.mcp_server` | `connect-mcp-poc-{env}-mcp-server` | Lambda | Servidor MCP fictício | `lambda.tf` | `mcp_server_lambda_arn` |
 | 4 | `aws_lambda_function_url.mcp_server` | `https://<id>.lambda-url.<region>.on.aws` | Lambda | Endpoint HTTPS do MCP (AWS_IAM) | `function_url.tf` | `mcp_server_function_url` |
 | 5 | `aws_lambda_event_source_mapping.sqs_to_integrator` | — | Lambda | SQS → Integrator (batch=5, partial) | `event_source.tf` | — |
-| 6 | `aws_iam_role.initializer` | `connect-mcp-poc-{env}-initializer-role` | IAM | Role da Initializer | `iam.tf` | — |
-| 7 | `aws_iam_role.integrator` | `connect-mcp-poc-{env}-integrator-role` | IAM | Role do Integrator | `iam.tf` | — |
-| 8 | `aws_iam_role.mcp_server` | `connect-mcp-poc-{env}-mcp-server-role` | IAM | Role do MCP Server | `iam.tf` | — |
+| 6 | `aws_iam_role.initializer` | `connect-mcp-poc-{env}-initializer-ExecutionRole-PPD` | IAM | Role da Initializer | `iam.tf` | — |
+| 7 | `aws_iam_role.integrator` | `connect-mcp-poc-{env}-integrator-ExecutionRole-PPD` | IAM | Role do Integrator | `iam.tf` | — |
+| 8 | `aws_iam_role.mcp_server` | `connect-mcp-poc-{env}-mcp-server-ExecutionRole-PPD` | IAM | Role do MCP Server | `iam.tf` | — |
 | 9 | `aws_iam_role_policy.initializer` | `connect-mcp-poc-{env}-initializer-policy` | IAM | Policy inline: DynamoDB, KMS, Connect | `iam.tf` | — |
 | 10 | `aws_iam_role_policy.integrator` | `connect-mcp-poc-{env}-integrator-policy` | IAM | Policy inline: SQS, DynamoDB, KMS, Lambda | `iam.tf` | — |
 | 11 | `aws_iam_role_policy_attachment.initializer_basic` | — | IAM | AWSLambdaBasicExecutionRole | `iam.tf` | — |
@@ -120,6 +120,16 @@ Falhas:
 | 33 | `aws_cloudwatch_metric_alarm.sqs_oldest_message` | `connect-mcp-poc-{env}-sqs-oldest-message` | CloudWatch | Alarme: mensagem > 5min | `monitoring.tf` | — |
 
 > **Nota:** Com `alarm_email = ""` (padrão), o plan cria 33 recursos. Se `alarm_email` for preenchido, o plan inclui +2 recursos condicionais (`aws_sns_topic.alarms` e `aws_sns_topic_subscription.alarm_email`), totalizando 35.
+
+### Governança IAM — Regras obrigatórias da conta
+
+| Requisito | Valor | Motivo |
+|-----------|-------|--------|
+| Sufixo nas roles | `-PPD` | Padrão obrigatório da conta AWS (ambiente pré-produção) |
+| Permissions Boundary | `arn:aws:iam::253223147282:policy/ContributorBoundaryPolicy-ITSM-145407` | Limita ações máximas que a role pode executar |
+| Tag obrigatória | `Project = "AWS-PPD"` | Classificação de custo e ownership |
+
+**Motivo da falha no apply parcial anterior:** As roles foram criadas sem permissions boundary e sem sufixo `-PPD`, violando a governance policy da conta. A criação foi rejeitada pela SCP/boundary. Os demais recursos (DynamoDB, KMS, SNS, SQS, Log Groups, alarmes) foram criados com sucesso e permanecem no state.
 
 ### Cadeia de policies (permissões entre serviços)
 

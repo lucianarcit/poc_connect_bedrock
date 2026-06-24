@@ -8,15 +8,24 @@
 #   requerem Resource = "*" porque a API não suporta resource-level permissions.
 #   Ref: https://docs.aws.amazon.com/connect/latest/adminguide/security-iam.html
 # - connectparticipant:* NÃO usa IAM/SigV4 (autenticado por token), portanto NÃO incluído.
+#
+# Governança da conta:
+# - Sufixo obrigatório: -PPD
+# - Permissions Boundary: ContributorBoundaryPolicy-ITSM-145407
+# - Tag obrigatória: Project = "AWS-PPD"
 
 # ============================================================================
 # INITIALIZER
 # ============================================================================
 
 resource "aws_iam_role" "initializer" {
-  name = "${local.initializer_name}-role"
+  name                 = local.initializer_role_name
+  assume_role_policy   = data.aws_iam_policy_document.lambda_assume.json
+  permissions_boundary = local.permissions_boundary_arn
 
-  assume_role_policy = data.aws_iam_policy_document.lambda_assume.json
+  tags = {
+    Project = "AWS-PPD"
+  }
 }
 
 resource "aws_iam_role_policy" "initializer" {
@@ -76,9 +85,13 @@ data "aws_iam_policy_document" "initializer_policy" {
 # ============================================================================
 
 resource "aws_iam_role" "integrator" {
-  name = "${local.integrator_name}-role"
+  name                 = local.integrator_role_name
+  assume_role_policy   = data.aws_iam_policy_document.lambda_assume.json
+  permissions_boundary = local.permissions_boundary_arn
 
-  assume_role_policy = data.aws_iam_policy_document.lambda_assume.json
+  tags = {
+    Project = "AWS-PPD"
+  }
 }
 
 resource "aws_iam_role_policy" "integrator" {
@@ -186,9 +199,13 @@ data "aws_iam_policy_document" "integrator_policy" {
 # ============================================================================
 
 resource "aws_iam_role" "mcp_server" {
-  name = "${local.mcp_server_name}-role"
+  name                 = local.mcp_server_role_name
+  assume_role_policy   = data.aws_iam_policy_document.lambda_assume.json
+  permissions_boundary = local.permissions_boundary_arn
 
-  assume_role_policy = data.aws_iam_policy_document.lambda_assume.json
+  tags = {
+    Project = "AWS-PPD"
+  }
 }
 
 resource "aws_iam_role_policy_attachment" "mcp_server_basic" {

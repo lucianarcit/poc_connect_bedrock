@@ -21,6 +21,14 @@ locals {
   integrator_name  = "${local.name}-integrator"
   mcp_server_name  = "${local.name}-mcp-server"
 
+  # IAM Roles — sufixo -PPD obrigatório por governança da conta
+  initializer_role_name = "${local.name}-initializer-ExecutionRole-PPD"
+  integrator_role_name  = "${local.name}-integrator-ExecutionRole-PPD"
+  mcp_server_role_name  = "${local.name}-mcp-server-ExecutionRole-PPD"
+
+  # Permissions Boundary obrigatória
+  permissions_boundary_arn = "arn:aws:iam::253223147282:policy/ContributorBoundaryPolicy-ITSM-145407"
+
   # Timings
   session_ttl_seconds     = var.session_ttl_hours * 3600
   idempotency_ttl_seconds = var.idempotency_ttl_hours * 3600

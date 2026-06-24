@@ -6,6 +6,10 @@
 > - `terraform validate` — ✅ concluído
 > - `terraform plan` — ⏳ pendente (requer `terraform.tfvars` com dados reais)
 > - `terraform apply` — ❌ não executado
+> - Lambda Initializer — ❌ ainda não criada na AWS
+> - Lambda autorizada no Connect — ❌ pendente (requer apply primeiro)
+> - Contact Flow — ❌ ainda não criado
+> - Communications Widget — ❌ ainda não criado
 >
 > **Última atualização:** Junho 2026
 > **Ambiente de referência:** Windows 11, PowerShell, AWS CLI v2, Terraform >= 1.6
@@ -460,57 +464,46 @@ Outputs disponíveis:
 
 ## H. Configuração Manual do Amazon Connect Após o Apply
 
+> As etapas detalhadas estão na seção C (C.2–C.5). Abaixo, o resumo operacional.
+
 ### H.1 Obter outputs do Terraform
 
 ```powershell
-terraform output initializer_lambda_arn
-terraform output sns_topic_arn
-terraform output mcp_server_function_url
+cd C:\proj\poc_connect\terraform
+terraform output -raw initializer_lambda_arn
+terraform output -raw sns_topic_arn
+terraform output -raw mcp_server_function_url
 ```
 
-### H.2 Autorizar Lambda na instância Connect
+### H.2 Autorizar Lambda na instância Connect (ver C.2)
 
-> Esta operação é feita no **console AWS**, não no admin website.
+1. AWS Console → Amazon Connect → selecionar instância → menu "Flows" → seção "AWS Lambda"
+2. Colar ARN obtido em H.1
+3. Clicar "Add Lambda Function"
 
-1. AWS Console → Amazon Connect → selecionar instância
-2. Menu lateral → "Flows"
-3. Seção "AWS Lambda" → colar ARN do output `initializer_lambda_arn`
-4. Clicar "Add Lambda Function"
-5. Verificar que aparece na lista
+### H.3 Criar Contact Flow de Chat (ver C.3)
 
-### H.3 Criar Contact Flow de Chat
-
-> Esta etapa é feita no **admin website** da instância (não no console AWS).
-
-1. Abrir admin website da instância (URL: `https://<alias>.my.connect.aws`)
-2. Routing → Contact flows → "Create contact flow"
-3. Nome: `MCP-POC-Chat-Flow`
-4. Adicionar bloco **"Invoke AWS Lambda Function"**
-   - Function ARN: selecionar `connect-mcp-poc-dev-initializer`
-   - Timeout: `8` segundos (timeout síncrono do bloco — a Initializer deve completar nesse tempo)
-5. Conectar saída "Success" a blocos que mantenham o contato ativo
-   - **Importante:** O desenho de manutenção da sessão é específico da POC e deve ser validado no teste de chat. Opções incluem Wait, Loop ou Transfer.
-6. Conectar saída "Error" a um bloco **"Disconnect"**
-7. Clicar **"Publish"**
+1. Admin website (`https://<alias>.my.connect.aws`) → Routing → Contact flows → "Create contact flow"
+2. Nome: `MCP-POC-Chat-Flow`
+3. Bloco "Invoke AWS Lambda Function" → `connect-mcp-poc-dev-initializer` → timeout 8s
+4. Success → manutenção da sessão (validar no teste)
+5. Error → Disconnect
+6. **Publicar**
 
 ### H.4 Validar no CloudWatch
 
-Após publicar o flow e testar um chat:
 ```powershell
-# Ver logs da Initializer (substitua região e nome)
 aws logs tail "/aws/lambda/connect-mcp-poc-dev-initializer" --since 5m --region us-east-1
 ```
 
-### H.5 Criar Amazon Connect Communications Widget
+### H.5 Criar Communications Widget (ver C.4)
 
-1. Admin website da instância → Channels → Chat → "Create widget"
+1. Admin website → Channels → Chat → "Create widget"
 2. Associar ao flow `MCP-POC-Chat-Flow`
 3. Domínios permitidos: `http://localhost:8080`
 4. Copiar snippet JavaScript
 
 ### H.6 Página HTML de teste
-
-Servir localmente (necessário para domínio permitido):
 
 ```powershell
 python -m http.server 8080
@@ -518,7 +511,7 @@ python -m http.server 8080
 
 Acessar: `http://localhost:8080/test.html`
 
-> **Nota:** Abrir `file://` não funciona — o widget requer origem HTTP.
+> **Nota:** `file://` não funciona — o widget requer origem HTTP.
 
 ---
 
@@ -765,28 +758,31 @@ aws logs filter-log-events `
 |------|-------------|-----------|--------|
 | Conta AWS confirmada | Operador | `aws sts get-caller-identity` | [ ] |
 | Região escolhida | Equipe | Documentado | [ ] |
-| Instância Connect criada | Operador | `aws connect list-instances` | [ ] |
+| Instância Connect criada (mesma região) | Operador | `aws connect list-instances` | [ ] |
 | Instance ID e ARN copiados | Operador | terraform.tfvars preenchido | [ ] |
 | Python 3.12 instalado (runtime de destino) | Operador | `python --version` | [ ] |
-| Terraform instalado | Operador | `terraform -version` | [ ] |
+| Terraform >= 1.6 instalado | Operador | `terraform -version` | [ ] |
 | Testes passando | Operador | `python -m pytest` → todos passed, ≥80% coverage | [ ] |
 | ZIPs gerados | Operador | `.\scripts\build_lambdas.ps1` OK | [ ] |
-| terraform.tfvars preenchido | Operador | Variáveis obrigatórias presentes | [ ] |
+| terraform.tfvars preenchido | Operador | `connect_instance_id` e `connect_instance_arn` presentes | [ ] |
+| terraform fmt | Operador | Sem alterações | [ ] |
 | terraform init | Operador | Sem erros | [ ] |
 | terraform validate | Operador | "Success!" | [ ] |
-| terraform plan | Operador | Plan revisado | [ ] |
+| terraform plan -out=tfplan | Operador | Plan revisado e aprovado | [ ] |
+| `git check-ignore terraform/tfplan` | Operador | Confirmado ignorado | [ ] |
 
-### Depois do Terraform e antes do teste
+### Depois do Terraform apply e antes do teste
 
 | Item | Responsável | Evidência | Status |
 |------|-------------|-----------|--------|
-| `terraform apply` executado | Operador | "Apply complete!" | [ ] |
-| Outputs verificados | Operador | `terraform output` | [ ] |
-| Lambda autorizada no Connect | Operador | ARN aparece no console Connect | [ ] |
-| Contact Flow criado | Operador | Flow publicado | [ ] |
+| `terraform apply tfplan` executado | Operador | "Apply complete!" | [ ] |
+| Outputs consultados | Operador | `terraform output` | [ ] |
+| `initializer_lambda_arn` obtido | Operador | ARN copiado | [ ] |
+| Lambda autorizada no Connect | Operador | Console AWS → Connect → instância → Flows → AWS Lambda → ARN na lista | [ ] |
+| Contact Flow criado e publicado | Operador | Admin website → status "Published" | [ ] |
 | Bloco Lambda com timeout 8s | Operador | Configuração visível no editor | [ ] |
-| Hosted Chat Widget criado | Operador | Widget funcional | [ ] |
-| Domínio localhost:8080 permitido | Operador | Configuração do widget | [ ] |
+| Communications Widget criado | Operador | Widget funcional no browser | [ ] |
+| Domínio `http://localhost:8080` permitido | Operador | Config do widget | [ ] |
 | E-mail de alarme confirmado | Operador | Subscription confirmed (se aplicável) | [ ] |
 
 ### Depois do teste e antes de encerrar a POC

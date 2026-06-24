@@ -105,6 +105,7 @@ class MessageProcessor:
 
         if session is None:
             logger.error("Session not found", extra={"contact_id": msg.contact_id})
+            self._emit_failed_final(msg, reason="session_not_found")
             idempotency_repo.mark_failed_final(msg.message_id)
             return False
 
@@ -165,6 +166,7 @@ class MessageProcessor:
 
         # Erro fatal na entrega
         if send_result.error_category == ErrorCategory.FATAL:
+            self._emit_failed_final(msg, reason="send_message_fatal")
             idempotency_repo.mark_failed_final(msg.message_id)
             return False
 
@@ -188,6 +190,7 @@ class MessageProcessor:
         try:
             participant_token = self._crypto.decrypt(session.participant_token_encrypted)
         except Exception:
+            self._emit_failed_final(msg, reason="decrypt_participant_token_failed")
             idempotency_repo.mark_failed_final(msg.message_id)
             return False
 
@@ -196,6 +199,7 @@ class MessageProcessor:
 
         if not renew_result.success:
             if renew_result.error_category == ErrorCategory.FATAL:
+                self._emit_failed_final(msg, reason="renew_connection_fatal")
                 idempotency_repo.mark_failed_final(msg.message_id)
                 return False
             # Transitório — fail item
@@ -228,6 +232,7 @@ class MessageProcessor:
         if retry_result.error_category == ErrorCategory.TRANSIENT:
             return True
 
+        self._emit_failed_final(msg, reason="send_after_renew_fatal")
         idempotency_repo.mark_failed_final(msg.message_id)
         return False
 
@@ -253,6 +258,7 @@ class MessageProcessor:
         )
 
         if send_result.success:
+            self._emit_failed_final(msg, reason="mcp_fatal_generic_response_sent")
             idempotency_repo.mark_failed_final(msg.message_id)
             return False  # não retry
 
@@ -261,8 +267,21 @@ class MessageProcessor:
             return True
 
         # Fatal no envio também — desistir
+        self._emit_failed_final(msg, reason="mcp_fatal_generic_response_also_fatal")
         idempotency_repo.mark_failed_final(msg.message_id)
         return False
+
+    def _emit_failed_final(self, msg: ConnectChatMessage, reason: str) -> None:
+        """Registra métrica e log estruturado para FAILED_FINAL."""
+        logger.warning(
+            "Message marked FAILED_FINAL",
+            extra={
+                "metric": "FailedFinal",
+                "contact_id": msg.contact_id,
+                "message_id": msg.message_id,
+                "reason": reason,
+            },
+        )
 
     @staticmethod
     def _format_mcp_response(tool_name: str, result: ToolResult) -> str:

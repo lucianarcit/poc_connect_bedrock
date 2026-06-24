@@ -26,3 +26,8 @@ def get_idempotency_ttl_seconds() -> int:
 def get_lease_duration_seconds() -> int:
     """Duração do lease de processamento: 90 segundos (> Lambda timeout 60s)."""
     return int(os.environ.get("LEASE_DURATION_SECONDS", "90"))
+
+
+def get_sqs_visibility_timeout() -> int:
+    """SQS VisibilityTimeout: 360 segundos (6x Lambda timeout, recomendação AWS)."""
+    return int(os.environ.get("SQS_VISIBILITY_TIMEOUT", "360"))

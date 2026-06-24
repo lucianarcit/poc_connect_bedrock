@@ -870,57 +870,57 @@ amazon-connect-mcp-poc/
 
 ---
 
-## 20. Política de Erros do MCP Client
+## 20. Política de Erros, Timings e FAILED_FINAL
+
+### Timings configurados
+
+| Parâmetro | Valor | Justificativa |
+|-----------|-------|---------------|
+| Lambda Integrator timeout | 60s | Tempo máximo de execução |
+| Idempotency lease duration | 90s | > Lambda timeout; garante que lease não expira durante execução normal |
+| SQS VisibilityTimeout | 360s | 6× Lambda timeout (recomendação AWS); garante que mensagem não reaparece enquanto lease pode estar ativo |
+| Lambda Initializer timeout | 8s | Máximo efetivo do Contact Flow (bloco Invoke Lambda) |
+| Contact Flow synchronous timeout | 8s | Limite do bloco; execução deve completar em <4s |
+| Initialization lease | 15s | Curto; inicialização real ~1-2s |
+
+**Invariante:** `SQS VisibilityTimeout (360s) >> Lease (90s) > Lambda timeout (60s)`
 
 ### Classificação de erros
 
-| Categoria | Exemplos | Resultado no MCPClient | Ação na Lambda Integrator |
-|-----------|----------|----------------------|--------------------------|
-| Negócio/ausência | Documento não encontrado, procedimento inexistente | `ToolResult(success=True, data={"document_id": None, ...})` | Envia resposta de fallback ao chat. Mensagem é marcada como processada (COMPLETED). |
-| Entrada inválida | HTTP 400, schema inválido | `MCPClientError` propagada | Envia mensagem genérica ao chat. Mensagem marcada como COMPLETED (não faz sentido retry). |
-| Transitório — timeout | `httpx.TimeoutException` após retries | `ToolResult(success=False, error="Timeout...")` | **NÃO marca como processada.** Lambda falha o registro SQS. SQS faz retry. Após 3 falhas → DLQ. |
-| Transitório — conexão | `httpx.ConnectError` após retries | `ToolResult(success=False, error="Falha ao conectar...")` | Mesmo tratamento: retry via SQS → DLQ. |
-| Transitório — server error | HTTP 5xx | `ToolResult(success=False, error="Server returned 5xx...")` | Mesmo tratamento: retry via SQS → DLQ. |
-| Fatal — JSON-RPC error | Código -32601 (method not found) | `ToolResult(success=False, error="JSON-RPC error...")` | Erro de configuração. Marca FAILED. Envia mensagem genérica. Não faz retry (não é transitório). |
+| Categoria | Exemplos | ToolResult | Ação na Lambda Integrator |
+|-----------|----------|-----------|--------------------------|
+| BUSINESS | Documento não encontrado, fallback | `success=True` | Envia resposta ao chat. `mark_completed`. Item removido da SQS. |
+| TRANSIENT | Timeout, conexão, HTTP 5xx, throttling | `success=False, error="Timeout..."` | **Fail item SQS** (should_fail=True). SQS reentrega. Após maxReceiveCount → DLQ. |
+| FATAL | JSON-RPC -32601, ValidationException, AccessDenied | `success=False, error="JSON-RPC..."` | Tenta enviar resposta genérica. `mark_failed_final`. Item removido da SQS. **Não vai para DLQ.** |
 
-### Regras obrigatórias
+### FAILED_FINAL — comportamento exato
 
-1. **Erros transitórios NUNCA devem ser tratados como sucesso da mensagem.** A mensagem não é deletada da SQS, forçando retry automático.
+Quando `mark_failed_final` é chamado e `should_fail=False`:
+1. O item é **removido da SQS** (não aparece em batchItemFailures)
+2. Ele **NÃO chega à DLQ** — DLQ recebe somente items que continuam falhando (TRANSIENT)
+3. O estado FAILED_FINAL é registrado no DynamoDB de idempotência
+4. Um log estruturado é emitido com `metric=FailedFinal`, `contact_id`, `message_id` e `reason`
+5. Em futuro: CloudWatch metric filter captura logs com `metric=FailedFinal` para alarme
 
-2. **Erros de negócio (fallback) SÃO sucesso de processamento.** A mensagem foi consumida corretamente, a resposta foi enviada ao chat (mesmo que seja "não encontrei").
+**Quando nenhuma resposta chegou ao usuário (FAILED_FINAL):**
+- Sessão não encontrada → nenhum canal disponível
+- Renovação fatal (contato encerrado) → canal já não existe
+- Envio genérico também fatal → canal inacessível
+- Em todos esses casos, o usuário não recebe resposta alguma
+- Detecção: alarme CloudWatch em `FailedFinal` + dashboard de taxa
 
-3. **Erros fatais (configuração, JSON-RPC) são marcados como FAILED** no DynamoDB de idempotência. Não geram retry (pois o resultado seria o mesmo). Uma mensagem genérica é enviada ao usuário.
+### ClientTokens e duplicação
 
-4. **Distinguir no ToolResult:**
-   - `success=True` → processamento OK, pode enviar `data` ao chat
-   - `success=False` + erro transitório → Lambda deve falhar o registro (raise exception)
-   - `success=False` + erro fatal → Lambda marca como FAILED, não faz retry
+O risco de duplicação de resposta no chat é **reduzido** pelo ClientToken determinístico:
+- `generate_client_token(contact_id, source_message_id, chunk_index)` — SHA256 de inputs fixos
+- Retries reutilizam os mesmos tokens
+- A API SendMessage usa ClientToken para deduplicação server-side
 
-### Implementação futura na Lambda Integrator
+**Nota:** "risco reduzido" e não "impossível" porque o comportamento exato do ClientToken em edge cases (token expirado + retry com novo token) não tem garantia documentada além da janela de deduplicação.
 
-```python
-result = mcp_client.call_tool(tool_name, arguments)
+### MCP stateless ≠ idempotente
 
-if result.success:
-    # Enviar resposta ao chat
-    send_chat_message(connection_token, format_response(result))
-    mark_as_completed(message_id)
-elif is_transient_error(result.error):
-    # NÃO marca como processada — SQS fará retry
-    raise TransientMCPError(result.error)
-else:
-    # Erro fatal — envia mensagem genérica, marca como FAILED
-    send_chat_message(connection_token, GENERIC_ERROR_MESSAGE)
-    mark_as_failed(message_id)
-```
+O MCP Server desta POC é stateless e suas tools são somente leitura (busca em documentos estáticos). Repetir uma chamada produz o mesmo resultado.
 
-### Classificação de erro transitório
+**Em produção com tools reais que têm efeitos colaterais** (criar ticket, enviar email, atualizar cadastro), a idempotência deve ser garantida pela implementação de cada tool, não pelo protocolo MCP.
 
-```python
-def is_transient_error(error: str | None) -> bool:
-    """Verifica se o erro é transitório (deve gerar retry)."""
-    if error is None:
-        return False
-    transient_indicators = ["timeout", "Timeout", "conectar", "Falha ao conectar", "5xx", "500", "502", "503"]
-    return any(indicator in error for indicator in transient_indicators)
-```

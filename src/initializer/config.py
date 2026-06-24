@@ -18,5 +18,5 @@ def get_sessions_table_name() -> str:
 
 
 def get_initialization_lease_seconds() -> int:
-    """Lease para reserva de inicialização (padrão: 30s, < timeout 8s do flow mas cobre retries)."""
-    return int(os.environ.get("INITIALIZATION_LEASE_SECONDS", "30"))
+    """Lease para reserva de inicialização (padrão: 15s, execução deve completar em <4s)."""
+    return int(os.environ.get("INITIALIZATION_LEASE_SECONDS", "15"))

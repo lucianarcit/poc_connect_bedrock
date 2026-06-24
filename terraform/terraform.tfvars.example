@@ -1,0 +1,15 @@
+# Copie este arquivo para terraform.tfvars e preencha os valores reais.
+# NUNCA commite terraform.tfvars com dados reais.
+
+aws_region              = "us-east-1"
+environment_name        = "dev"
+connect_instance_id     = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
+connect_instance_arn    = "arn:aws:connect:us-east-1:123456789012:instance/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
+connect_contact_flow_id = ""  # Opcional
+alarm_email             = ""  # Se vazio, alarmes não criam subscription
+log_retention_days      = 14
+
+tags = {
+  Team  = "platform"
+  Owner = "seu-nome"
+}

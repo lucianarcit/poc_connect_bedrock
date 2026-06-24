@@ -8,6 +8,7 @@ Responsabilidades:
 - Controlar timeout e retry
 - Registrar latência
 - Tratar erros
+- Assinar requests com SigV4 quando configurado (Lambda Function URL)
 
 Para a POC, usa httpx para fazer POST direto no endpoint /mcp.
 O protocolo MCP Streamable HTTP é baseado em JSON-RPC 2.0.
@@ -15,6 +16,7 @@ O protocolo MCP Streamable HTTP é baseado em JSON-RPC 2.0.
 
 from __future__ import annotations
 
+import json
 import time
 import uuid
 from typing import Any
@@ -29,6 +31,7 @@ from shared.mcp_client.exceptions import (
     MCPToolNotFoundError,
 )
 from shared.mcp_client.models import MCPClientProtocol, ToolDefinition, ToolResult
+from shared.sigv4 import NoOpSigV4Auth, SigV4Signer
 
 
 class MCPClient(MCPClientProtocol):
@@ -47,15 +50,17 @@ class MCPClient(MCPClientProtocol):
         timeout_seconds: float = 10.0,
         max_retries: int = 2,
         headers: dict[str, str] | None = None,
+        sigv4_auth: SigV4Signer | None = None,
     ) -> None:
         self._server_url = server_url.rstrip("/")
         self._timeout = timeout_seconds
         self._max_retries = max_retries
-        self._headers = {
+        self._base_headers = {
             "Content-Type": "application/json",
             "Accept": "application/json",
             **(headers or {}),
         }
+        self._sigv4 = sigv4_auth or NoOpSigV4Auth()
 
     def _make_jsonrpc_request(self, method: str, params: dict | None = None) -> dict:
         """Envia um request JSON-RPC 2.0 ao servidor MCP."""
@@ -66,15 +71,24 @@ class MCPClient(MCPClientProtocol):
             "method": method,
             "params": params or {},
         }
+        body = json.dumps(payload).encode("utf-8")
 
         last_error: Exception | None = None
         for attempt in range(self._max_retries + 1):
             try:
+                # Assinar headers com SigV4 (no-op se não configurado)
+                signed_headers = self._sigv4.sign_headers(
+                    method="POST",
+                    url=self._server_url,
+                    headers=dict(self._base_headers),
+                    body=body,
+                )
+
                 with httpx.Client(timeout=self._timeout) as client:
                     response = client.post(
                         self._server_url,
-                        json=payload,
-                        headers=self._headers,
+                        content=body,
+                        headers=signed_headers,
                     )
 
                 if response.status_code >= 500:

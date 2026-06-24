@@ -71,12 +71,23 @@ class MessageProcessor:
         region = os.environ.get("AWS_REGION", "us-east-1")
         kms_key_id = os.environ.get("KMS_KEY_ID", "")
         mcp_url = os.environ.get("MCP_SERVER_URL", "http://localhost:8000/mcp")
+        mcp_timeout = float(os.environ.get("MCP_TIMEOUT_SECONDS", "10"))
+        mcp_retries = int(os.environ.get("MCP_MAX_RETRIES", "2"))
 
         if kms_key_id:
             kms_client = boto3.client("kms", region_name=region)
             crypto: CryptoService = KMSCryptoService(kms_client, kms_key_id)
         else:
             crypto = FakeCryptoService()
+
+        # SigV4 auth para Function URL (quando URL é .lambda-url.*.on.aws)
+        from shared.sigv4 import AWSSigV4Auth, NoOpSigV4Auth, SigV4Signer
+
+        sigv4_auth: SigV4Signer
+        if ".lambda-url." in mcp_url and ".on.aws" in mcp_url:
+            sigv4_auth = AWSSigV4Auth(region=region, service="lambda")
+        else:
+            sigv4_auth = NoOpSigV4Auth()
 
         return cls(
             session_repo=SessionRepository(
@@ -85,7 +96,12 @@ class MessageProcessor:
             ),
             participant_service=ParticipantService(connectparticipant_client=cp_client),
             crypto=crypto,
-            mcp_client=MCPClient(server_url=mcp_url),
+            mcp_client=MCPClient(
+                server_url=mcp_url,
+                timeout_seconds=mcp_timeout,
+                max_retries=mcp_retries,
+                sigv4_auth=sigv4_auth,
+            ),
             tool_selector=ToolSelector(),
         )
 

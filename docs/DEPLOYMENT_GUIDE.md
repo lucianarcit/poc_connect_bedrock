@@ -4,7 +4,7 @@
 > - `terraform fmt` — ✅ concluído
 > - `terraform init` — ✅ concluído
 > - `terraform validate` — ✅ concluído
-> - `terraform plan` — ⏳ pendente (requer `terraform.tfvars` com dados reais)
+> - `terraform plan` — ✅ concluído (33 to add, 0 to change, 0 to destroy)
 > - `terraform apply` — ❌ não executado
 > - Lambda Initializer — ❌ ainda não criada na AWS
 > - Lambda autorizada no Connect — ❌ pendente (requer apply primeiro)
@@ -77,76 +77,131 @@ Falhas:
 
 ---
 
-## B. O que o Terraform Cria
+## B. O que o Terraform Cria — Inventário Completo (33 recursos)
 
-### Lambda Functions (`terraform/lambda.tf`)
+> Baseado no `terraform plan` final. Nomes usam `{env}` = valor de `environment_name` (default: `dev`).
 
-| Recurso Terraform | Nome | Handler | Timeout | Variável | Output |
-|-------------------|------|---------|---------|----------|--------|
-| `aws_lambda_function.initializer` | `connect-mcp-poc-{env}-initializer` | `initializer.handler.handler` | 8s | `initializer_timeout` | `initializer_lambda_arn` |
-| `aws_lambda_function.integrator` | `connect-mcp-poc-{env}-integrator` | `integrator.handler.handler` | 60s | `integrator_timeout` | `integrator_lambda_arn` |
-| `aws_lambda_function.mcp_server` | `connect-mcp-poc-{env}-mcp-server` | `mcp_server.handler.handler` | 30s | `mcp_server_timeout` | `mcp_server_lambda_arn` |
+### Tabela completa de recursos
 
-### IAM (`terraform/iam.tf`)
+| # | Recurso Terraform | Nome AWS | Serviço | Finalidade | Arquivo .tf | Output |
+|---|-------------------|----------|---------|-----------|-------------|--------|
+| 1 | `aws_lambda_function.initializer` | `connect-mcp-poc-{env}-initializer` | Lambda | Inicializa bot no contato | `lambda.tf` | `initializer_lambda_arn` |
+| 2 | `aws_lambda_function.integrator` | `connect-mcp-poc-{env}-integrator` | Lambda | Processa mensagens do chat | `lambda.tf` | `integrator_lambda_arn` |
+| 3 | `aws_lambda_function.mcp_server` | `connect-mcp-poc-{env}-mcp-server` | Lambda | Servidor MCP fictício | `lambda.tf` | `mcp_server_lambda_arn` |
+| 4 | `aws_lambda_function_url.mcp_server` | `https://<id>.lambda-url.<region>.on.aws` | Lambda | Endpoint HTTPS do MCP (AWS_IAM) | `function_url.tf` | `mcp_server_function_url` |
+| 5 | `aws_lambda_event_source_mapping.sqs_to_integrator` | — | Lambda | SQS → Integrator (batch=5, partial) | `event_source.tf` | — |
+| 6 | `aws_iam_role.initializer` | `connect-mcp-poc-{env}-initializer-role` | IAM | Role da Initializer | `iam.tf` | — |
+| 7 | `aws_iam_role.integrator` | `connect-mcp-poc-{env}-integrator-role` | IAM | Role do Integrator | `iam.tf` | — |
+| 8 | `aws_iam_role.mcp_server` | `connect-mcp-poc-{env}-mcp-server-role` | IAM | Role do MCP Server | `iam.tf` | — |
+| 9 | `aws_iam_role_policy.initializer` | `connect-mcp-poc-{env}-initializer-policy` | IAM | Policy inline: DynamoDB, KMS, Connect | `iam.tf` | — |
+| 10 | `aws_iam_role_policy.integrator` | `connect-mcp-poc-{env}-integrator-policy` | IAM | Policy inline: SQS, DynamoDB, KMS, Lambda | `iam.tf` | — |
+| 11 | `aws_iam_role_policy_attachment.initializer_basic` | — | IAM | AWSLambdaBasicExecutionRole | `iam.tf` | — |
+| 12 | `aws_iam_role_policy_attachment.integrator_basic` | — | IAM | AWSLambdaBasicExecutionRole | `iam.tf` | — |
+| 13 | `aws_iam_role_policy_attachment.mcp_server_basic` | — | IAM | AWSLambdaBasicExecutionRole | `iam.tf` | — |
+| 14 | `aws_dynamodb_table.sessions` | `connect-mcp-poc-{env}-sessions` | DynamoDB | Sessões e tokens criptografados | `dynamodb.tf` | `sessions_table_name` |
+| 15 | `aws_dynamodb_table.idempotency` | `connect-mcp-poc-{env}-idempotency` | DynamoDB | Controle de duplicidade (lease) | `dynamodb.tf` | `idempotency_table_name` |
+| 16 | `aws_kms_key.tokens` | — (gerado pela AWS) | KMS | Criptografia de tokens | `kms.tf` | `kms_key_arn` |
+| 17 | `aws_kms_alias.tokens` | `alias/connect-mcp-poc-{env}-tokens` | KMS | Alias legível para a chave | `kms.tf` | — |
+| 18 | `aws_sns_topic.streaming` | `connect-mcp-poc-{env}-streaming` | SNS | Streaming de mensagens Connect | `sns.tf` | `sns_topic_arn` |
+| 19 | `aws_sns_topic_policy.allow_connect` | — (inline no topic) | SNS | Permite Connect publicar (sns:Publish) | `sns.tf` | — |
+| 20 | `aws_sns_topic_subscription.sqs` | — | SNS | Entrega mensagens SNS → SQS | `sns.tf` | — |
+| 21 | `aws_sqs_queue.messages` | `connect-mcp-poc-{env}-messages` | SQS | Fila principal de mensagens | `sqs.tf` | `sqs_queue_url` |
+| 22 | `aws_sqs_queue.dlq` | `connect-mcp-poc-{env}-messages-dlq` | SQS | Dead-letter queue (14 dias) | `sqs.tf` | `sqs_dlq_url` |
+| 23 | `aws_sqs_queue_policy.allow_sns` | — (inline na queue) | SQS | Permite SNS publicar na fila | `sqs.tf` | — |
+| 24 | `aws_cloudwatch_log_group.initializer` | `/aws/lambda/connect-mcp-poc-{env}-initializer` | CloudWatch | Logs da Initializer | `monitoring.tf` | — |
+| 25 | `aws_cloudwatch_log_group.integrator` | `/aws/lambda/connect-mcp-poc-{env}-integrator` | CloudWatch | Logs do Integrator | `monitoring.tf` | — |
+| 26 | `aws_cloudwatch_log_group.mcp_server` | `/aws/lambda/connect-mcp-poc-{env}-mcp-server` | CloudWatch | Logs do MCP Server | `monitoring.tf` | — |
+| 27 | `aws_cloudwatch_log_metric_filter.failed_final` | `connect-mcp-poc-{env}-failed-final` | CloudWatch | Captura `{ $.metric = "FailedFinal" }` | `monitoring.tf` | — |
+| 28 | `aws_cloudwatch_metric_alarm.failed_final` | `connect-mcp-poc-{env}-failed-final` | CloudWatch | Alarme: FailedFinal > 0 | `monitoring.tf` | — |
+| 29 | `aws_cloudwatch_metric_alarm.dlq_messages` | `connect-mcp-poc-{env}-dlq-not-empty` | CloudWatch | Alarme: DLQ não vazia | `monitoring.tf` | — |
+| 30 | `aws_cloudwatch_metric_alarm.initializer_errors` | `connect-mcp-poc-{env}-initializer-errors` | CloudWatch | Alarme: Errors Initializer > 2 | `monitoring.tf` | — |
+| 31 | `aws_cloudwatch_metric_alarm.integrator_errors` | `connect-mcp-poc-{env}-integrator-errors` | CloudWatch | Alarme: Errors Integrator > 2 | `monitoring.tf` | — |
+| 32 | `aws_cloudwatch_metric_alarm.integrator_throttles` | `connect-mcp-poc-{env}-integrator-throttles` | CloudWatch | Alarme: Throttles > 0 | `monitoring.tf` | — |
+| 33 | `aws_cloudwatch_metric_alarm.sqs_oldest_message` | `connect-mcp-poc-{env}-sqs-oldest-message` | CloudWatch | Alarme: mensagem > 5min | `monitoring.tf` | — |
 
-| Recurso | Nome | Principal | Ações-chave |
-|---------|------|-----------|-------------|
-| `aws_iam_role.initializer` | `...-initializer-role` | lambda.amazonaws.com | DynamoDB Sessions, KMS Encrypt, connect:StartContactStreaming, connect:CreateParticipant |
-| `aws_iam_role.integrator` | `...-integrator-role` | lambda.amazonaws.com | SQS, DynamoDB (2 tabelas), KMS, lambda:InvokeFunctionUrl, lambda:InvokeFunction |
-| `aws_iam_role.mcp_server` | `...-mcp-server-role` | lambda.amazonaws.com | Apenas AWSLambdaBasicExecutionRole (logs) |
+> **Nota:** Com `alarm_email = ""` (padrão), o plan cria 33 recursos. Se `alarm_email` for preenchido, o plan inclui +2 recursos condicionais (`aws_sns_topic.alarms` e `aws_sns_topic_subscription.alarm_email`), totalizando 35.
 
-### DynamoDB (`terraform/dynamodb.tf`)
+### Cadeia de policies (permissões entre serviços)
 
-| Recurso | Nome | PK | TTL | Criptografia | Output |
-|---------|------|----|-----|-------------|--------|
-| `aws_dynamodb_table.sessions` | `connect-mcp-poc-{env}-sessions` | `pk` (S) | `expires_at` | Default (aws/dynamodb) | `sessions_table_name` |
-| `aws_dynamodb_table.idempotency` | `connect-mcp-poc-{env}-idempotency` | `pk` (S) | `expires_at` | Default (aws/dynamodb) | `idempotency_table_name` |
+```
+Amazon Connect ─[sns:Publish]──► SNS Topic       (aws_sns_topic_policy.allow_connect)
+SNS Topic      ─[sqs:SendMessage]──► SQS Queue   (aws_sqs_queue_policy.allow_sns)
+SQS Queue      ─[event source mapping]──► Lambda Integrator
+Lambda Integrator ─[lambda:InvokeFunctionUrl + SigV4]──► Lambda Function URL (MCP Server)
+```
 
-### KMS (`terraform/kms.tf`)
+### Outputs finais do Terraform
 
-| Recurso | Alias | Rotação | Deletion Window | Output |
-|---------|-------|---------|-----------------|--------|
-| `aws_kms_key.tokens` | `alias/connect-mcp-poc-{env}-tokens` | Sim | 7 dias | `kms_key_arn` |
+| Output | Descrição | Uso |
+|--------|-----------|-----|
+| `sns_topic_arn` | ARN do SNS Topic de streaming | Código da Initializer (env var automática) |
+| `sqs_queue_url` | URL da fila SQS principal | Monitoramento |
+| `sqs_dlq_url` | URL da DLQ | Monitoramento / redrive |
+| `sessions_table_name` | Nome da tabela DynamoDB Sessions | Código (env var automática) |
+| `idempotency_table_name` | Nome da tabela DynamoDB Idempotency | Código (env var automática) |
+| `kms_key_arn` | ARN da chave KMS | Referência |
+| `initializer_lambda_arn` | ARN da Lambda Initializer | **Autorizar no Amazon Connect** |
+| `integrator_lambda_arn` | ARN da Lambda Integrator | Referência |
+| `mcp_server_lambda_arn` | ARN da Lambda MCP Server | Referência |
+| `mcp_server_function_url` | URL HTTPS do MCP Server | Código do Integrator (env var automática) |
+| `connect_instance_id` | Instance ID (passthrough) | Referência |
 
-### SNS (`terraform/sns.tf`)
+### O que é manual (não criado pelo Terraform)
 
-| Recurso | Nome | Subscription | Output |
-|---------|------|-------------|--------|
-| `aws_sns_topic.streaming` | `connect-mcp-poc-{env}-streaming` | → SQS (raw=false) | `sns_topic_arn` |
+| Recurso | Quando | Depende do apply? |
+|---------|--------|-------------------|
+| Instância Amazon Connect | Antes do Terraform | Não |
+| Autorização Lambda no Connect | Depois do apply | **Sim** (precisa do ARN) |
+| Contact Flow de Chat | Depois do apply | **Sim** (Lambda deve existir) |
+| Communications Widget | Depois do Contact Flow | **Sim** |
+| Confirmação e-mail alarme | Depois do apply | **Sim** |
 
-### SQS (`terraform/sqs.tf`)
+### Custo potencial por recurso
 
-| Recurso | Nome | Visibility | Retenção | DLQ | Output |
-|---------|------|-----------|----------|-----|--------|
-| `aws_sqs_queue.messages` | `...-messages` | 360s | 4 dias | → dlq (max 3) | `sqs_queue_url` |
-| `aws_sqs_queue.dlq` | `...-messages-dlq` | — | 14 dias | — | `sqs_dlq_url` |
+| Recurso | Fator de cobrança | Gera custo sem uso? |
+|---------|------------------|---------------------|
+| Lambda (3) | Invocações + duração | Não (pay-per-use) |
+| DynamoDB (2) | Requisições (PAY_PER_REQUEST) | Não |
+| KMS (1) | Chave ativa + requisições | **Sim** (chave ativa) |
+| SQS (2) | Mensagens | Não |
+| SNS (1) | Mensagens publicadas | Não |
+| CloudWatch Logs (3) | Ingestão + armazenamento | Só com logs ativos |
+| CloudWatch Alarms (6) | Por alarme/mês | **Sim** (custo fixo por alarme) |
+| Function URL | Incluído no custo Lambda | Não |
+| Event Source Mapping | Incluído no custo Lambda | Não |
 
-### Function URL (`terraform/function_url.tf`)
+> Consulte [AWS Pricing Calculator](https://calculator.aws/) para valores atualizados.
 
-| Recurso | Auth Type | CORS | Output |
-|---------|-----------|------|--------|
-| `aws_lambda_function_url.mcp_server` | `AWS_IAM` | Vazio (server-to-server) | `mcp_server_function_url` |
+### Como validar cada recurso após o apply
 
-### Event Source Mapping (`terraform/event_source.tf`)
+```powershell
+# Lambdas
+aws lambda get-function --function-name connect-mcp-poc-dev-initializer --region us-east-1 --query "Configuration.FunctionArn"
+aws lambda get-function --function-name connect-mcp-poc-dev-integrator --region us-east-1 --query "Configuration.FunctionArn"
+aws lambda get-function --function-name connect-mcp-poc-dev-mcp-server --region us-east-1 --query "Configuration.FunctionArn"
 
-| Recurso | Source | Function | Batch | Response |
-|---------|--------|----------|-------|----------|
-| `aws_lambda_event_source_mapping.sqs_to_integrator` | SQS messages | Integrator | 5 | ReportBatchItemFailures |
+# Function URL
+aws lambda get-function-url-config --function-name connect-mcp-poc-dev-mcp-server --region us-east-1
 
-### Monitoring (`terraform/monitoring.tf`)
+# DynamoDB
+aws dynamodb describe-table --table-name connect-mcp-poc-dev-sessions --region us-east-1 --query "Table.TableStatus"
+aws dynamodb describe-table --table-name connect-mcp-poc-dev-idempotency --region us-east-1 --query "Table.TableStatus"
 
-| Recurso | Nome | Condição | Ação |
-|---------|------|----------|------|
-| Log Group Initializer | `/aws/lambda/...-initializer` | — | — |
-| Log Group Integrator | `/aws/lambda/...-integrator` | — | — |
-| Log Group MCP Server | `/aws/lambda/...-mcp-server` | — | — |
-| Metric Filter | `...-failed-final` | `{ $.metric = "FailedFinal" }` | → FailedFinalCount |
-| Alarm `failed_final` | `...-failed-final` | Sum > 0 / 5min | SNS alarmes |
-| Alarm `dlq_messages` | `...-dlq-not-empty` | Visible > 0 | SNS alarmes |
-| Alarm `initializer_errors` | `...-initializer-errors` | Sum > 2 / 10min | SNS alarmes |
-| Alarm `integrator_errors` | `...-integrator-errors` | Sum > 2 / 10min | SNS alarmes |
-| Alarm `integrator_throttles` | `...-integrator-throttles` | Sum > 0 / 5min | SNS alarmes |
-| Alarm `sqs_oldest_message` | `...-sqs-oldest-message` | Max > 300s | SNS alarmes |
+# KMS
+aws kms describe-key --key-id alias/connect-mcp-poc-dev-tokens --region us-east-1 --query "KeyMetadata.KeyState"
+
+# SNS
+aws sns get-topic-attributes --topic-arn $(terraform output -raw sns_topic_arn) --region us-east-1
+
+# SQS
+aws sqs get-queue-attributes --queue-url $(terraform output -raw sqs_queue_url) --attribute-names All --region us-east-1
+
+# Event Source Mapping
+aws lambda list-event-source-mappings --function-name connect-mcp-poc-dev-integrator --region us-east-1
+
+# CloudWatch Alarms
+aws cloudwatch describe-alarms --alarm-name-prefix connect-mcp-poc-dev --region us-east-1 --query "MetricAlarms[].AlarmName"
+```
 
 ---
 

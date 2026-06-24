@@ -45,6 +45,15 @@
 | Instance ID | Manual → Terraform | `connect_instance_id` |
 | Instance ARN | Manual → Terraform | `connect_instance_arn` |
 | Região | Manual → Terraform | `aws_region` |
-| Lambda Initializer ARN | Terraform → Manual | `initializer_lambda_arn` |
-| SNS Topic ARN | Terraform → Código | `sns_topic_arn` (env var) |
-| MCP Server URL | Terraform → Código | `mcp_server_function_url` (env var) |
+| Lambda Initializer ARN | Terraform → Manual | `initializer_lambda_arn` (autorizar no Connect **depois do apply**) |
+| SNS Topic ARN | Terraform → Código | `sns_topic_arn` (env var automática; topic policy Connect→SNS criada pelo Terraform) |
+| MCP Server URL | Terraform → Código | `mcp_server_function_url` (env var automática) |
+
+## Cadeia de permissões (todas criadas pelo Terraform)
+
+```
+Connect ─[sns:Publish]─► SNS Topic    (aws_sns_topic_policy.allow_connect em sns.tf)
+SNS     ─[sqs:SendMessage]─► SQS     (aws_sqs_queue_policy.allow_sns em sqs.tf)
+SQS     ─[event source]─► Integrator  (aws_lambda_event_source_mapping em event_source.tf)
+Integrator ─[SigV4]─► Function URL   (IAM + aws_lambda_function_url em iam.tf + function_url.tf)
+```

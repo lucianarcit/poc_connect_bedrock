@@ -1,0 +1,81 @@
+[
+  {
+    "procedure_id": "PROC-001",
+    "title": "Procedimento de redefinição de senha",
+    "steps": [
+      "Acessar a tela de login",
+      "Clicar em 'Esqueci minha senha'",
+      "Informar o nome de usuário ou e-mail",
+      "Verificar a caixa de entrada do e-mail",
+      "Clicar no link de redefinição",
+      "Cadastrar nova senha (mínimo 8 caracteres, letras e números)",
+      "Confirmar a nova senha",
+      "Fazer login com a nova senha"
+    ],
+    "notes": [
+      "O link de redefinição expira em 30 minutos",
+      "Verifique também a pasta de spam",
+      "A nova senha não pode ser igual às 5 últimas utilizadas"
+    ],
+    "source": "DOC-001",
+    "demo": true
+  },
+  {
+    "procedure_id": "PROC-002",
+    "title": "Procedimento de desbloqueio de conta",
+    "steps": [
+      "Aguardar 30 minutos para desbloqueio automático",
+      "Se persistir, acessar portal de autoatendimento",
+      "Clicar em 'Desbloquear minha conta'",
+      "Responder perguntas de segurança",
+      "Tentar login novamente"
+    ],
+    "notes": [
+      "A conta bloqueia após 5 tentativas incorretas",
+      "O desbloqueio automático ocorre após 30 minutos",
+      "Se não lembrar das respostas de segurança, contate o suporte N2"
+    ],
+    "source": "DOC-002",
+    "demo": true
+  },
+  {
+    "procedure_id": "PROC-003",
+    "title": "Procedimento para erro de acesso",
+    "steps": [
+      "Verificar navegador (Chrome ou Firefox recomendados)",
+      "Limpar cache e cookies",
+      "Testar em janela anônima",
+      "Verificar conexão com internet",
+      "Confirmar URL do sistema",
+      "Desconectar e reconectar VPN se aplicável",
+      "Consultar painel de status"
+    ],
+    "notes": [
+      "Internet Explorer e Edge Legacy não são suportados",
+      "O cache pode ser limpo com Ctrl+Shift+Delete",
+      "Se usar proxy corporativo, pode ser necessário exceção"
+    ],
+    "source": "DOC-003",
+    "demo": true
+  },
+  {
+    "procedure_id": "PROC-005",
+    "title": "Procedimento de escalonamento para N2",
+    "steps": [
+      "Confirmar que soluções de N1 foram esgotadas",
+      "Coletar número do chamado original",
+      "Descrever o problema detalhadamente",
+      "Anexar capturas de tela",
+      "Informar horário de início do problema",
+      "Solicitar escalonamento ao atendente",
+      "Aguardar confirmação por e-mail"
+    ],
+    "notes": [
+      "SLA de resposta do N2: até 4 horas úteis",
+      "Horário de atendimento N2: segunda a sexta, 08h às 20h",
+      "Chamados críticos (sistema totalmente indisponível) têm prioridade"
+    ],
+    "source": "DOC-005",
+    "demo": true
+  }
+]

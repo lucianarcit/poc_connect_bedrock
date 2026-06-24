@@ -1,0 +1,57 @@
+[
+  {
+    "id": "DOC-001",
+    "title": "Redefinição de senha",
+    "product": "Sistema Demo",
+    "language": "pt-BR",
+    "content": "Para redefinir sua senha, siga os passos abaixo:\n1. Acesse a tela de login do sistema.\n2. Clique em 'Esqueci minha senha'.\n3. Informe seu nome de usuário ou e-mail cadastrado.\n4. Verifique sua caixa de entrada (incluindo spam).\n5. Clique no link de redefinição recebido por e-mail.\n6. Cadastre uma nova senha com no mínimo 8 caracteres, incluindo letras e números.\n7. Confirme a nova senha.\n8. Faça login com a nova senha.\n\nCaso não receba o e-mail em até 5 minutos, entre em contato com o suporte.\n\nConteúdo fictício criado exclusivamente para demonstração.",
+    "keywords": ["senha", "redefinir", "esqueci", "trocar senha", "alterar senha", "password", "reset"],
+    "procedures": ["PROC-001"],
+    "updated_at": "2024-06-01T10:00:00Z",
+    "demo": true
+  },
+  {
+    "id": "DOC-002",
+    "title": "Desbloqueio de usuário",
+    "product": "Sistema Demo",
+    "language": "pt-BR",
+    "content": "Se sua conta foi bloqueada após múltiplas tentativas de login:\n1. Aguarde 30 minutos para desbloqueio automático.\n2. Se o bloqueio persistir, acesse o portal de autoatendimento.\n3. Clique em 'Desbloquear minha conta'.\n4. Confirme sua identidade respondendo às perguntas de segurança.\n5. Após confirmação, sua conta será desbloqueada imediatamente.\n6. Tente fazer login novamente com suas credenciais corretas.\n\nSe o problema persistir, solicite apoio ao suporte de segundo nível.\n\nConteúdo fictício criado exclusivamente para demonstração.",
+    "keywords": ["bloqueio", "bloqueado", "bloqueada", "desbloqueio", "desbloquear", "conta bloqueada", "tentativas", "locked"],
+    "procedures": ["PROC-002"],
+    "updated_at": "2024-06-01T10:00:00Z",
+    "demo": true
+  },
+  {
+    "id": "DOC-003",
+    "title": "Erro de acesso ao sistema",
+    "product": "Sistema Demo",
+    "language": "pt-BR",
+    "content": "Se você está recebendo erro ao tentar acessar o sistema:\n1. Verifique se está usando o navegador recomendado (Chrome ou Firefox).\n2. Limpe o cache e cookies do navegador.\n3. Tente acessar em uma janela anônima/privada.\n4. Verifique se sua conexão com a internet está estável.\n5. Confirme se o endereço do sistema está correto.\n6. Se usar VPN, tente desconectar e reconectar.\n7. Verifique se há manutenção programada no painel de status.\n\nCaso o erro persista após todos os passos, registre um chamado informando:\n- Navegador e versão\n- Mensagem de erro exata\n- Horário da tentativa\n\nConteúdo fictício criado exclusivamente para demonstração.",
+    "keywords": ["erro", "acesso", "não consigo acessar", "sistema fora", "não abre", "erro 403", "erro 500", "login falha"],
+    "procedures": ["PROC-003"],
+    "updated_at": "2024-06-01T10:00:00Z",
+    "demo": true
+  },
+  {
+    "id": "DOC-004",
+    "title": "Indisponibilidade temporária",
+    "product": "Sistema Demo",
+    "language": "pt-BR",
+    "content": "Quando o sistema está temporariamente indisponível:\n1. Verifique o painel de status em https://status.exemplo.com.br (fictício).\n2. Se houver manutenção programada, aguarde o horário previsto de retorno.\n3. Se não houver manutenção listada, o problema pode ser uma indisponibilidade não planejada.\n4. Aguarde 15 minutos e tente novamente.\n5. Se a indisponibilidade persistir por mais de 30 minutos, entre em contato com o suporte.\n\nHorários comuns de manutenção: domingos das 02h às 06h.\n\nConteúdo fictício criado exclusivamente para demonstração.",
+    "keywords": ["indisponível", "fora do ar", "manutenção", "sistema caiu", "não funciona", "offline", "downtime"],
+    "procedures": [],
+    "updated_at": "2024-06-01T10:00:00Z",
+    "demo": true
+  },
+  {
+    "id": "DOC-005",
+    "title": "Escalonamento para suporte de segundo nível",
+    "product": "Sistema Demo",
+    "language": "pt-BR",
+    "content": "Para solicitar escalonamento para o suporte de segundo nível:\n1. Certifique-se de que já tentou todas as soluções disponíveis no primeiro nível.\n2. Reúna as seguintes informações:\n   - Número do chamado original (se houver)\n   - Descrição detalhada do problema\n   - Passos já tentados\n   - Capturas de tela dos erros\n   - Horário de início do problema\n3. Informe ao atendente que deseja escalonamento.\n4. O suporte de segundo nível tem SLA de resposta de até 4 horas úteis.\n5. Você receberá um e-mail de confirmação com o novo número de chamado.\n\nConteúdo fictício criado exclusivamente para demonstração.",
+    "keywords": ["escalonamento", "segundo nível", "nível 2", "suporte avançado", "transferir", "atendente", "humano", "falar com atendente"],
+    "procedures": ["PROC-005"],
+    "updated_at": "2024-06-01T10:00:00Z",
+    "demo": true
+  }
+]

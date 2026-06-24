@@ -59,3 +59,25 @@
 | Lambda sem acesso à internet | Lambda em VPC sem NAT | Configuração Lambda (VPC) | POC não usa VPC; remover config VPC |
 | SNS não entrega para SQS | SQS policy ausente | Console SQS → Access Policy | Terraform cria `aws_sqs_queue_policy.allow_sns` |
 | Subscription SNS "Pending confirmation" | E-mail de alarme não confirmado | Console SNS → Subscriptions | Clicar link no e-mail |
+
+## Amazon Connect — Handoff Humano
+
+| Sintoma | Causa provável | Onde olhar | Correção |
+|---------|---------------|-----------|----------|
+| Agente não recebe o chat | Fila ausente no routing profile | Admin website → Routing profiles | Associar fila com canal Chat |
+| Agente não aparece disponível | Status offline ou canal Chat desabilitado | CCP → status do agente | Alterar status para "Available"; verificar routing profile |
+| Chat fica preso na fila | Nenhum agente elegível | Console Connect → Real-time metrics | Verificar staffing, routing profile e simultaneidade |
+| Transfer to queue falha | Working queue não definida no flow | Editor do Contact Flow | Adicionar "Set working queue" antes de Transfer |
+| Atendimento ocorre fora do horário | Flow não verifica horário | Editor do Contact Flow | Adicionar "Check hours of operation" |
+| Usuário não acessa CCP | Security profile insuficiente | Admin website → Security profiles | Ajustar permissões (CCP access, Chat) |
+| Widget funciona sem telefone | Comportamento esperado | — | Chat não exige número telefônico |
+| Flow de voz confundido com chat | Tipo de flow incorreto | Admin website → Contact flows | Criar "Contact flow" (não whisper/hold/queue) |
+
+## Amazon Connect — Idioma e Encoding
+
+| Sintoma | Causa provável | Onde olhar | Correção |
+|---------|---------------|-----------|----------|
+| Widget em inglês | Textos não personalizados | Config do widget | Configurar título/placeholder em pt-BR |
+| Acentos corrompidos nos logs | Encoding do log viewer | CloudWatch → formato | Verificar UTF-8; content_type=text/plain funciona |
+| Keyword matching falha com acentos | Normalização Unicode ausente | `tool_selector.py` | Código normaliza automaticamente (remover acentos) |
+| `customerLocale` ignorado | Atributo não definido no flow | Editor do Contact Flow | Adicionar "Set contact attributes" com `customerLocale=pt-BR` |

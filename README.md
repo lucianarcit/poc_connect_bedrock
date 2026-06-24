@@ -164,9 +164,10 @@ python -m pytest tests/unit/test_mcp_tools.py -v
 ## Documentação
 
 - **[📋 Manual Completo de Implantação](docs/DEPLOYMENT_GUIDE.md)** — Guia passo a passo para deploy, teste e remoção
+- **[🔧 Configuração Amazon Connect](docs/amazon-connect-setup.md)** — POC mínima (bot-only) e handoff humano opcional
 - [Checklist de Deploy](docs/DEPLOYMENT_CHECKLIST.md) — Versão reduzida para impressão
 - [Recursos Manuais](docs/MANUAL_RESOURCES.md) — O que o Terraform NÃO cria
-- [Troubleshooting](docs/TROUBLESHOOTING.md) — Problemas comuns e soluções
+- [Troubleshooting](docs/troubleshooting.md) — Problemas comuns e soluções
 - [Arquitetura](ARCHITECTURE.md)
 - [Custos](COSTS.md)
 - [DLQ Runbook](docs/dlq-runbook.md)

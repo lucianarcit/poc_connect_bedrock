@@ -1,8 +1,15 @@
 # Manual Completo de Implantação — POC Amazon Connect + MCP
 
-> **Status:** Implementação concluída; `terraform fmt/validate/plan` pendentes.
+> **Status da infraestrutura:**
+> - `terraform fmt` — ✅ concluído
+> - `terraform init` — ✅ concluído
+> - `terraform validate` — ✅ concluído
+> - `terraform plan` — ⏳ pendente (requer `terraform.tfvars` com dados reais)
+> - `terraform apply` — ❌ não executado
+>
 > **Última atualização:** Junho 2026
 > **Ambiente de referência:** Windows 11, PowerShell, AWS CLI v2, Terraform >= 1.6
+> **Runtime de destino:** Python 3.12 (recomendado; runtime Lambda configurado)
 
 ---
 
@@ -46,7 +53,7 @@ Falhas:
 |------------|-----------|------------|-----------------|
 | Instância Amazon Connect | MANUAL | Plataforma de chat | Console AWS → Amazon Connect |
 | Contact Flow | MANUAL | Orquestra o chat, invoca Initializer | Console Amazon Connect |
-| Hosted Chat Widget | MANUAL | Interface do usuário no browser | Console Amazon Connect |
+| Communications Widget (widget de chat hospedado) | MANUAL | Interface do usuário no browser | Console Amazon Connect |
 | Lambda Initializer | AUTOMÁTICO (Terraform) | Registra bot no contato | `terraform/lambda.tf` |
 | Lambda Integrator | AUTOMÁTICO (Terraform) | Processa mensagens, chama MCP | `terraform/lambda.tf` |
 | Lambda MCP Server | AUTOMÁTICO (Terraform) | Servidor MCP fictício | `terraform/lambda.tf` |
@@ -142,8 +149,9 @@ Falhas:
 ## C. O que Precisa Ser Feito Manualmente
 
 > ⚠️ **Os itens abaixo NÃO são criados pelo Terraform desta POC.**
+> As etapas estão divididas em **Antes** e **Depois** do `terraform apply`.
 
-### C.1 Criar a Instância Amazon Connect
+### Antes do Terraform — C.1 Criar a Instância Amazon Connect
 
 - **Serviço:** Amazon Connect
 - **Console:** AWS Console → Amazon Connect → Create instance
@@ -156,45 +164,60 @@ Falhas:
   5. Aceitar padrões de telefonia (não usamos voz)
   6. Aceitar padrões de armazenamento
   7. Confirmar e criar
-- **Valores a guardar:**
+- **Valores a guardar (necessários para terraform.tfvars):**
   - Instance ID: `aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee`
   - Instance ARN: `arn:aws:connect:<region>:<account>:instance/<id>`
   - Região: deve ser **a mesma** do Terraform (`aws_region`)
+  - Alias: nome escolhido (ex: `mcp-poc-dev`)
 - **Validação:**
   ```powershell
   aws connect list-instances --region us-east-1
   ```
 - **Erro comum:** Criar em região diferente da configurada no Terraform.
 
-### C.2 Autorizar a Lambda Initializer na Instância Connect
+> Após esta etapa, preencher `terraform.tfvars` e seguir o fluxo Terraform (seções E, F, G).
+> As etapas C.2–C.5 só podem ser executadas **depois** do `terraform apply`.
 
-- **Serviço:** Amazon Connect
-- **Console:** Amazon Connect → Instância → Contact flows → AWS Lambda
-- **Caminho:** `https://<alias>.my.connect.aws` → Contact flows → AWS Lambda
+---
+
+### Depois do Terraform apply — C.2 Autorizar a Lambda Initializer
+
+> ⚠️ **PRÉ-REQUISITO:** A Lambda Initializer deve já existir na AWS.
+> Esta etapa só pode ser executada **depois do `terraform apply`**.
+
+```powershell
+cd C:\proj\poc_connect\terraform
+terraform output -raw initializer_lambda_arn
+```
+
+- **Console:** AWS Console → Amazon Connect → selecionar instância → Flows → AWS Lambda
+- **Caminho:** `https://console.aws.amazon.com/connect/` → clicar no alias da instância → menu lateral "Flows" → seção "AWS Lambda"
 - **Passos:**
-  1. Abrir a instância Connect
-  2. Menu lateral: "Contact flows"
+  1. AWS Console → Amazon Connect → clicar no nome/alias da instância
+  2. Menu lateral: "Flows"
   3. Seção "AWS Lambda"
-  4. Colar o ARN da Lambda Initializer (obtido do output `initializer_lambda_arn`)
+  4. Colar o ARN obtido com `terraform output -raw initializer_lambda_arn`
   5. Clicar "Add Lambda Function"
 - **Valor:** `arn:aws:lambda:<region>:<account>:function:connect-mcp-poc-dev-initializer`
-- **Como obter:** `terraform output initializer_lambda_arn`
 - **Validação:** O ARN aparece na lista de funções autorizadas.
 - **Erro comum:** Colar ARN com versão/alias ($LATEST), ou Lambda em região diferente.
+- **Nota:** Esta etapa autoriza a invocação no nível da instância. A configuração do bloco Lambda no Contact Flow é feita separadamente no admin website (seção C.3).
 
-### C.3 Criar o Contact Flow de Chat
+### Depois do Terraform apply — C.3 Criar o Contact Flow de Chat
 
-- **Serviço:** Amazon Connect
-- **Console:** Amazon Connect → Routing → Contact flows → Create contact flow
+> Esta configuração é feita no **admin website** da instância (`https://<alias>.my.connect.aws`), não no console AWS.
+
+- **Serviço:** Amazon Connect (admin website)
+- **Console:** Admin website → Routing → Contact flows → Create contact flow
 - **Passos:**
   1. Nome: `MCP-POC-Chat-Flow`
   2. Tipo: "Contact flow" (não "Customer queue flow")
   3. Adicionar bloco **"Invoke AWS Lambda Function"**
      - Selecionar: `connect-mcp-poc-dev-initializer`
-     - Timeout: `8` segundos
+     - Timeout: `8` segundos (timeout síncrono do bloco — aplica-se à invocação da Initializer)
   4. Ramificação **Success**:
-     - Adicionar bloco **"Wait"** (Loop → tempo ou condição de encerramento)
-     - Ou adicionar bloco **"Transfer to queue"** se handoff necessário
+     - Adicionar bloco para manter o contato ativo enquanto o bot processa mensagens
+     - **Nota:** O desenho de manutenção da sessão (Wait, Loop, Transfer) é específico da POC e deve ser validado durante o teste de chat real. Não há uma solução universal — o comportamento depende do caso de uso.
   5. Ramificação **Error**:
      - Adicionar bloco **"Play prompt"** ou **"Disconnect"**
   6. Publicar o fluxo (botão "Publish")
@@ -202,10 +225,10 @@ Falhas:
 - **Validação:** O fluxo aparece como "Published" na lista.
 - **Erro comum:** Não publicar o fluxo (fica em "Draft" e não funciona).
 
-### C.4 Criar e Configurar o Hosted Chat Widget
+### Depois do Terraform apply — C.4 Criar Amazon Connect Communications Widget
 
-- **Serviço:** Amazon Connect
-- **Console:** Amazon Connect → Channels → Chat → Communication Widget
+- **Serviço:** Amazon Connect (admin website)
+- **Console:** Admin website da instância → Channels → Chat → Communication Widget
 - **Passos:**
   1. Criar novo widget
   2. Associar ao Contact Flow criado (`MCP-POC-Chat-Flow`)
@@ -217,7 +240,7 @@ Falhas:
 - **Validação:** Widget abre no browser e conecta ao chat.
 - **Erro comum:** Domínio de origem não permitido (widget não carrega).
 
-### C.5 Confirmar Subscription de E-mail (Alarmes)
+### Depois do Terraform apply — C.5 Confirmar Subscription de E-mail (Alarmes)
 
 Se `alarm_email` foi preenchido no `terraform.tfvars`:
 - O Terraform cria uma subscription SNS com protocolo "email"
@@ -231,7 +254,7 @@ Se `alarm_email` foi preenchido no `terraform.tfvars`:
 ## D. Checklist de Pré-requisitos
 
 - [ ] Repositório clonado e branch correta (ex: `main`)
-- [ ] Python 3.12+ instalado (`python --version`)
+- [ ] Python 3.12 instalado — runtime de destino (`python --version`)
 - [ ] Ambiente virtual `.venv` criado e ativado
 - [ ] Dependências de dev instaladas (`pip install -r requirements-dev.txt`)
 - [ ] AWS CLI v2 instalada (`aws --version`)
@@ -260,6 +283,7 @@ aws sts get-caller-identity
 aws configure list
 aws connect list-instances --region us-east-1
 git status
+git check-ignore terraform/tfplan   # Deve mostrar o path (confirmando que está ignorado)
 ```
 
 ---
@@ -279,6 +303,8 @@ python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 ```
 
+> **Nota:** Use Python 3.12 para o ambiente virtual. É o runtime configurado nas Lambdas (`python3.12`). Versões superiores podem funcionar localmente mas não são o target de deploy.
+
 ### E.3 Instalar dependências de desenvolvimento
 
 ```powershell
@@ -291,7 +317,7 @@ pip install -r requirements-dev.txt
 python -m pytest
 ```
 
-Resultado esperado: `241 passed`, cobertura ≥ 80%.
+Resultado de referência (pode variar com atualizações de dependências): `241 passed`, cobertura ≥ 80%.
 
 ### E.5 Executar build das Lambdas
 
@@ -299,7 +325,7 @@ Resultado esperado: `241 passed`, cobertura ≥ 80%.
 .\scripts\build_lambdas.ps1
 ```
 
-Resultado esperado:
+Resultado de referência (tamanhos podem variar com atualizações de dependências):
 ```
 initializer.zip - ~2.5 MB
 integrator.zip  - ~3.1 MB
@@ -373,6 +399,8 @@ tags = {
 
 ### G.1 Sequência obrigatória
 
+> ⚠️ **Planos salvos (`tfplan`, `*.tfplan`) podem conter dados sensíveis** (ARNs, IDs de conta, valores de variáveis). Nunca os versione no Git. O `.gitignore` deste projeto já os exclui.
+
 ```powershell
 cd C:\proj\poc_connect\terraform
 
@@ -397,7 +425,7 @@ terraform show tfplan
 - [ ] Conta AWS correta (verificar account ID no plan)
 - [ ] Região correta (mesma do Connect)
 - [ ] Nenhuma exclusão inesperada no plan
-- [ ] Quantidade de recursos coerente (~30 recursos na primeira execução)
+- [ ] Quantidade de recursos coerente (referência: ~30 recursos na primeira execução)
 - [ ] Nenhum segredo aparecendo no plan
 - [ ] Connect Instance ARN correto
 - [ ] Lambda ZIPs existem em `packages/`
@@ -442,22 +470,26 @@ terraform output mcp_server_function_url
 
 ### H.2 Autorizar Lambda na instância Connect
 
-1. Console AWS → Amazon Connect → selecionar instância
-2. Menu lateral → "Contact flows"
+> Esta operação é feita no **console AWS**, não no admin website.
+
+1. AWS Console → Amazon Connect → selecionar instância
+2. Menu lateral → "Flows"
 3. Seção "AWS Lambda" → colar ARN do output `initializer_lambda_arn`
 4. Clicar "Add Lambda Function"
 5. Verificar que aparece na lista
 
 ### H.3 Criar Contact Flow de Chat
 
-1. Abrir painel da instância (link do console Connect)
+> Esta etapa é feita no **admin website** da instância (não no console AWS).
+
+1. Abrir admin website da instância (URL: `https://<alias>.my.connect.aws`)
 2. Routing → Contact flows → "Create contact flow"
 3. Nome: `MCP-POC-Chat-Flow`
 4. Adicionar bloco **"Invoke AWS Lambda Function"**
    - Function ARN: selecionar `connect-mcp-poc-dev-initializer`
-   - Timeout: `8` (segundos)
-5. Conectar saída "Success" a um bloco **"Wait"**
-   - Configurar timeout (ex: 5 minutos) ou condição de saída
+   - Timeout: `8` segundos (timeout síncrono do bloco — a Initializer deve completar nesse tempo)
+5. Conectar saída "Success" a blocos que mantenham o contato ativo
+   - **Importante:** O desenho de manutenção da sessão é específico da POC e deve ser validado no teste de chat. Opções incluem Wait, Loop ou Transfer.
 6. Conectar saída "Error" a um bloco **"Disconnect"**
 7. Clicar **"Publish"**
 
@@ -469,9 +501,9 @@ Após publicar o flow e testar um chat:
 aws logs tail "/aws/lambda/connect-mcp-poc-dev-initializer" --since 5m --region us-east-1
 ```
 
-### H.5 Criar Hosted Chat Widget
+### H.5 Criar Amazon Connect Communications Widget
 
-1. Amazon Connect → Channels → Chat → "Create widget"
+1. Admin website da instância → Channels → Chat → "Create widget"
 2. Associar ao flow `MCP-POC-Chat-Flow`
 3. Domínios permitidos: `http://localhost:8080`
 4. Copiar snippet JavaScript
@@ -516,15 +548,21 @@ Acessar: `http://localhost:8080/test.html`
 - **Resultado esperado:** Item volta para SQS (fail), retry automático após VisibilityTimeout
 - **Evidência:** Log com `should_fail=True`, mensagem reaparece na fila
 
-### Teste 5 — DLQ
+### Teste 5 — DLQ (⚠️ teste avançado, sujeito a autorização)
 
-- **Como provocar:** Desligar ou desconfigurar a Lambda MCP Server (ex: timeout muito baixo)
-- **Resultado esperado:** Após 3 falhas consecutivas, mensagem vai para DLQ
+> Este teste requer provocar falhas reais. Execute apenas em ambiente de teste isolado e com autorização.
+
+- **Mecanismo de falha preferido para teste controlado:**
+  - Configurar uma variável de ambiente na Lambda Integrator (ex: `FORCE_TRANSIENT_ERROR=true`) que force o código a retornar falha transitória para mensagens de teste
+  - Alternativa menos segura: reduzir o timeout do MCP Server temporariamente para provocar timeouts
+  - **Não recomendado como procedimento padrão:** desconfigurar ou remover recursos de produção
+- **Resultado esperado:** Após 3 falhas consecutivas (maxReceiveCount), mensagem vai para DLQ
 - **Verificação:**
   ```powershell
   aws sqs get-queue-attributes --queue-url <DLQ_URL> --attribute-names ApproximateNumberOfMessages --region us-east-1
   ```
 - **Alarme:** `connect-mcp-poc-dev-dlq-not-empty` dispara
+- **Limpeza:** Reverter a variável de ambiente ou timeout ao valor original após o teste
 
 ### Teste 6 — FAILED_FINAL
 
@@ -681,7 +719,7 @@ aws logs filter-log-events `
 |---------|-------------|---------------------|
 | Lambda | Por invocação + duração | `terraform destroy` |
 | DynamoDB | Por requisição (PAY_PER_REQUEST) | `terraform destroy` |
-| KMS | $1/mês por chave ativa | `terraform destroy` (7d waiting) |
+| KMS | Por chave ativa + requisições (Encrypt/Decrypt) | `terraform destroy` (7d waiting) |
 | SQS | Por mensagem | `terraform destroy` |
 | SNS | Por mensagem publicada | `terraform destroy` |
 | CloudWatch Logs | Por ingestão + armazenamento | `terraform destroy` ou ajustar retenção |
@@ -729,9 +767,9 @@ aws logs filter-log-events `
 | Região escolhida | Equipe | Documentado | [ ] |
 | Instância Connect criada | Operador | `aws connect list-instances` | [ ] |
 | Instance ID e ARN copiados | Operador | terraform.tfvars preenchido | [ ] |
-| Python 3.12+ instalado | Operador | `python --version` | [ ] |
+| Python 3.12 instalado (runtime de destino) | Operador | `python --version` | [ ] |
 | Terraform instalado | Operador | `terraform -version` | [ ] |
-| Testes passando | Operador | `python -m pytest` → 241 passed | [ ] |
+| Testes passando | Operador | `python -m pytest` → todos passed, ≥80% coverage | [ ] |
 | ZIPs gerados | Operador | `.\scripts\build_lambdas.ps1` OK | [ ] |
 | terraform.tfvars preenchido | Operador | Variáveis obrigatórias presentes | [ ] |
 | terraform init | Operador | Sem erros | [ ] |
@@ -789,6 +827,7 @@ Data prevista destruição:____/____/________
 
 ## Referências
 
+- [Configuração do Amazon Connect](amazon-connect-setup.md) — POC mínima e handoff humano opcional
 - [ARCHITECTURE.md](../ARCHITECTURE.md) — Decisões técnicas detalhadas
 - [terraform/](../terraform/) — Todos os arquivos .tf
 - [scripts/build_lambdas.ps1](../scripts/build_lambdas.ps1) — Build das Lambdas

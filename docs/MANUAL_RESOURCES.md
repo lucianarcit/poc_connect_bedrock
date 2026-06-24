@@ -1,30 +1,50 @@
 # Recursos Manuais — Resumo
 
 > Recursos que **NÃO** são criados pelo Terraform e precisam de configuração manual.
+> Detalhes completos em [amazon-connect-setup.md](amazon-connect-setup.md).
+
+## POC Mínima (Bot-Only)
 
 | Recurso Manual | Quando Criar | Onde Criar | Dados a Guardar | Como Validar |
 |---------------|-------------|-----------|-----------------|-------------|
-| Instância Amazon Connect | Antes do Terraform | Console AWS → Amazon Connect → Add instance | Instance ID, Instance ARN, Região | `aws connect list-instances` |
-| Autorização Lambda no Connect | Após `terraform apply` | Console Connect → Contact flows → AWS Lambda | — | ARN aparece na lista |
-| Contact Flow de Chat | Após autorizar Lambda | Console Connect → Routing → Contact flows | Contact Flow ID | Flow em status "Published" |
-| Bloco Invoke Lambda (no flow) | Ao criar Contact Flow | Editor do Contact Flow → Add block | — | Lambda selecionada, timeout 8s |
-| Hosted Chat Widget | Após publicar Contact Flow | Console Connect → Channels → Chat → Widget | Snippet JS | Widget carrega no browser |
-| Domínio permitido no Widget | Ao criar Widget | Configuração do Widget | — | Widget não mostra erro de origem |
-| Confirmação e-mail alarme | Após apply (se alarm_email preenchido) | E-mail do destinatário | — | Subscription status = Confirmed |
-| Página HTML de teste | Para testar o widget | Arquivo local servido via `python -m http.server 8080` | — | Widget abre e conecta |
+| Instância Amazon Connect | Antes do Terraform | Console AWS → Amazon Connect | Instance ID, ARN, Região, Alias | `aws connect list-instances` |
+| Usuário administrador | Ao criar instância | Wizard de criação | Username, senha | Login no admin website |
+| Autorização Lambda | Após `terraform apply` | Console AWS → Connect → instância → Flows → AWS Lambda | — | ARN na lista |
+| Flow logs | Após criar instância | Console AWS → Connect → instância → Flows | — | Log group existe |
+| Contact Flow de Chat | Após autorizar Lambda | Admin website → Routing → Contact flows | Contact Flow ID | Status "Published" |
+| Communications Widget | Após publicar flow | Admin website → Channels → Chat | Snippet JS | Widget renderiza |
+| Domínio permitido | Ao criar widget | Config do widget | — | Widget carrega |
+| Página HTML de teste | Para testar | Arquivo local + `python -m http.server 8080` | — | localhost:8080 funciona |
+| Confirmação e-mail alarme | Após apply (se alarm_email) | E-mail do destinatário | — | Subscription confirmed |
 
-## Dados que o Terraform precisa ANTES do apply
+## Handoff Humano (Opcional)
 
-| Dado | De onde vem | Variável Terraform |
-|------|------------|-------------------|
-| Instance ID | Console Connect ou CLI | `connect_instance_id` |
-| Instance ARN | Console Connect ou CLI | `connect_instance_arn` |
-| Região AWS | Escolha ao criar instância | `aws_region` |
+| Recurso Manual | Quando Criar | Onde Criar | Dados a Guardar | Como Validar |
+|---------------|-------------|-----------|-----------------|-------------|
+| Horário de operação | Antes de configurar fila | Admin website → Routing → Hours | Nome, timezone | Listado em Hours |
+| Fila de chat | Após horário | Admin website → Routing → Queues | Nome | Canal Chat habilitado |
+| Security profile agente | Antes do usuário | Admin website → Users → Security profiles | Nome | Permissões corretas |
+| Routing profile | Após fila | Admin website → Users → Routing profiles | Nome | Fila associada |
+| Usuário agente | Após routing profile | Admin website → Users → User management | Username | Login CCP funciona |
+| Alteração do Contact Flow | Após filas | Admin website → editor do flow | — | Flow republicado |
 
-## Dados que saem do Terraform PARA configuração manual
+## Não Necessário
 
-| Output Terraform | Onde usar |
-|-----------------|----------|
-| `initializer_lambda_arn` | Autorização Lambda no Connect + bloco do Contact Flow |
-| `sns_topic_arn` | Código da Initializer usa automaticamente (env var) |
-| `mcp_server_function_url` | Código do Integrator usa automaticamente (env var) |
+| Recurso | Motivo |
+|---------|--------|
+| Número de telefone | POC chat-only via widget |
+| Telefonia | Sem canal de voz |
+| IVR / URA | Conceito de voz |
+| Caller ID | Sem chamadas |
+| Gravação de voz | Sem voz |
+
+## Dados: Terraform ← → Manual
+
+| Dado | Direção | Variável/Output |
+|------|---------|-----------------|
+| Instance ID | Manual → Terraform | `connect_instance_id` |
+| Instance ARN | Manual → Terraform | `connect_instance_arn` |
+| Região | Manual → Terraform | `aws_region` |
+| Lambda Initializer ARN | Terraform → Manual | `initializer_lambda_arn` |
+| SNS Topic ARN | Terraform → Código | `sns_topic_arn` (env var) |
+| MCP Server URL | Terraform → Código | `mcp_server_function_url` (env var) |

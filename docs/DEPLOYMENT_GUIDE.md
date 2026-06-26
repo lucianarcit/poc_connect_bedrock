@@ -378,6 +378,38 @@ terraform output -raw initializer_lambda_arn
 
 *Figura — Contact Flow publicado da POC: atributo customerLocale = pt-BR, invocação da Lambda Initializer, mensagem de sucesso, espera do participante Bot por 20 minutos e tratamento centralizado de erros.*
 
+#### Validar e obter o Contact Flow ID
+
+Após publicar, confirme que o flow existe e obtenha seu ID:
+
+```powershell
+aws connect list-contact-flows `
+  --instance-id 15b9513e-4459-4766-a32a-2d4297a34651 `
+  --profile connect-poc `
+  --region us-east-1 `
+  --query "ContactFlowSummaryList[?Name=='MCP-POC-Chat-Flow'].[Id,Name]" `
+  --output table
+```
+
+Para exportar o JSON completo do fluxo (backup e documentação):
+
+```powershell
+aws connect describe-contact-flow `
+  --instance-id 15b9513e-4459-4766-a32a-2d4297a34651 `
+  --contact-flow-id <CONTACT_FLOW_ID> `
+  --profile connect-poc `
+  --region us-east-1 `
+  --query "ContactFlow.Content" `
+  --output text > docs/contact-flow.json
+```
+
+Substitua `<CONTACT_FLOW_ID>` pelo ID retornado no comando anterior.
+
+O arquivo `docs/contact-flow.json` contém a definição completa do fluxo e pode ser usado para:
+- Recriar o fluxo em outra instância
+- Documentar a configuração exata
+- Comparar alterações futuras
+
 ### Depois do Terraform apply — C.4 Criar Amazon Connect Communications Widget
 
 - **Serviço:** Amazon Connect (admin website)

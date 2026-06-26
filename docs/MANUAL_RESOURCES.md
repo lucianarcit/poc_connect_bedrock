@@ -9,10 +9,10 @@
 |---------------|-------------|-----------|-----------------|-------------|
 | Instância Amazon Connect | Antes do Terraform | Console AWS → Amazon Connect | Instance ID, ARN, Região, Alias | `aws connect list-instances` |
 | Usuário administrador | Ao criar instância | Wizard de criação | Username, senha | Login no admin website |
-| Autorização Lambda | Após `terraform apply` | Console AWS → Connect → instância → Flows → AWS Lambda | — | ARN na lista |
+| Autorização Lambda | Após apply (✅ concluído) | Console AWS → Connect → instância → Flows → AWS Lambda | — | ARN na lista |
 | Flow logs | Após criar instância | Console AWS → Connect → instância → Flows | — | Log group existe |
-| Contact Flow de Chat | Após autorizar Lambda | Admin website → Routing → Contact flows | Contact Flow ID | Status "Published" |
-| Communications Widget | Após publicar flow | Admin website → Channels → Chat | Snippet JS | Widget renderiza |
+| Contact Flow de Chat | Após autorizar Lambda (apply ✅) | Admin website → Routing → Contact flows | Contact Flow ID | Status "Published" |
+| Communications Widget | Após publicar flow (apply ✅) | Admin website → Channels → Chat | Snippet JS | Widget renderiza |
 | Domínio permitido | Ao criar widget | Config do widget | — | Widget carrega |
 | Página HTML de teste | Para testar | Arquivo local + `python -m http.server 8080` | — | localhost:8080 funciona |
 | Confirmação e-mail alarme | Após apply (se alarm_email) | E-mail do destinatário | — | Subscription confirmed |
@@ -45,7 +45,7 @@
 | Instance ID | Manual → Terraform | `connect_instance_id` |
 | Instance ARN | Manual → Terraform | `connect_instance_arn` |
 | Região | Manual → Terraform | `aws_region` |
-| Lambda Initializer ARN | Terraform → Manual | `initializer_lambda_arn` (autorizar no Connect **depois do apply**) |
+| Lambda Initializer ARN | Terraform → Manual | `initializer_lambda_arn` (autorizar no Connect — **Lambda já criada**) |
 | SNS Topic ARN | Terraform → Código | `sns_topic_arn` (env var automática; topic policy Connect→SNS criada pelo Terraform) |
 | MCP Server URL | Terraform → Código | `mcp_server_function_url` (env var automática) |
 

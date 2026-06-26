@@ -30,7 +30,9 @@ terraform/*.tfstate
 terraform/*.tfstate.backup
 terraform/*.tfplan
 terraform/tfplan
+terraform/tfplan-*
 tfplan
+tfplan-*
 *.tfplan
 terraform/terraform.tfvars
 terraform/*.auto.tfvars

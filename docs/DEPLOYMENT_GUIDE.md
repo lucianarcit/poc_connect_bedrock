@@ -4,12 +4,23 @@
 > - `terraform fmt` — ✅ concluído
 > - `terraform init` — ✅ concluído
 > - `terraform validate` — ✅ concluído
-> - `terraform plan` — ⏳ pendente (IAM roles corrigidas; requer novo plan)
-> - `terraform apply` — parcial (recursos base criados; 3 IAM roles + 3 Lambdas + Function URL + Event Source pendentes)
-> - Lambda Initializer — ❌ ainda não criada na AWS
-> - Lambda autorizada no Connect — ❌ pendente (requer apply primeiro)
-> - Contact Flow — ❌ ainda não criado
-> - Communications Widget — ❌ ainda não criado
+> - `terraform plan` — ✅ concluído
+> - `terraform apply` — ✅ concluído (Apply final: 16 added, 0 changed, 0 destroyed)
+> - Infraestrutura Terraform — ✅ criada
+> - Lambda Initializer — ✅ criada na AWS
+> - Lambda Integrator — ✅ criada na AWS
+> - Lambda MCP Server — ✅ criada na AWS
+> - MCP Server Function URL — ✅ criada
+> - Event Source Mapping SQS → Integrator — ✅ criado
+> - IAM Roles com sufixo `-PPD` e permissions boundary — ✅ criadas
+> - Lambda Initializer autorizada no Amazon Connect — ⏳ pendente
+> - Contact Flow — ⏳ pendente
+> - Communications Widget — ⏳ pendente
+>
+> **Próximos passos (manuais):**
+> 1. Autorizar `connect-mcp-poc-dev-initializer` na instância Amazon Connect
+> 2. Criar o Contact Flow de Chat (`MCP-POC-Chat-Flow`)
+> 3. Criar o Communications Widget em português
 >
 > **Última atualização:** Junho 2026
 > **Ambiente de referência:** Windows 11, PowerShell, AWS CLI v2, Terraform >= 1.6
@@ -121,15 +132,84 @@ Falhas:
 
 > **Nota:** Com `alarm_email = ""` (padrão), o plan cria 33 recursos. Se `alarm_email` for preenchido, o plan inclui +2 recursos condicionais (`aws_sns_topic.alarms` e `aws_sns_topic_subscription.alarm_email`), totalizando 35.
 
-### Governança IAM — Regras obrigatórias da conta
+### Governança IAM — Padrão Obrigatório da Conta AWS
 
-| Requisito | Valor | Motivo |
-|-----------|-------|--------|
-| Sufixo nas roles | `-PPD` | Padrão obrigatório da conta AWS (ambiente pré-produção) |
-| Permissions Boundary | `arn:aws:iam::253223147282:policy/ContributorBoundaryPolicy-ITSM-145407` | Limita ações máximas que a role pode executar |
-| Tag obrigatória | `Project = "AWS-PPD"` | Classificação de custo e ownership |
+Todas as IAM Roles criadas nesta conta devem cumprir obrigatoriamente:
 
-**Motivo da falha no apply parcial anterior:** As roles foram criadas sem permissions boundary e sem sufixo `-PPD`, violando a governance policy da conta. A criação foi rejeitada pela SCP/boundary. Os demais recursos (DynamoDB, KMS, SNS, SQS, Log Groups, alarmes) foram criados com sucesso e permanecem no state.
+#### 1. Sufixo no nome
+
+O nome da role deve terminar em `-PPD`. Nomes usados nesta POC:
+
+```
+connect-mcp-poc-dev-initializer-ExecutionRole-PPD
+connect-mcp-poc-dev-integrator-ExecutionRole-PPD
+connect-mcp-poc-dev-mcp-server-ExecutionRole-PPD
+```
+
+#### 2. Permissions Boundary obrigatória
+
+```
+arn:aws:iam::253223147282:policy/ContributorBoundaryPolicy-ITSM-145407
+```
+
+Exemplo Terraform:
+```hcl
+resource "aws_iam_role" "exemplo" {
+  name                 = "MinhaRole-ExecutionRole-PPD"
+  assume_role_policy   = data.aws_iam_policy_document.assume.json
+  permissions_boundary = "arn:aws:iam::253223147282:policy/ContributorBoundaryPolicy-ITSM-145407"
+
+  tags = {
+    Project = "AWS-PPD"
+  }
+}
+```
+
+#### 3. Tag obrigatória
+
+```hcl
+tags = {
+  Project = "AWS-PPD"
+}
+```
+
+#### 4. Least privilege
+
+Cada role recebe somente as permissões necessárias:
+- **Initializer:** Amazon Connect (StartContactStreaming, CreateParticipant), DynamoDB Sessions, KMS Encrypt
+- **Integrator:** SQS, DynamoDB (2 tabelas), KMS (Encrypt/Decrypt), lambda:InvokeFunctionUrl
+- **MCP Server:** Apenas AWSLambdaBasicExecutionRole (logs)
+
+#### 5. Causa da falha no primeiro apply
+
+O primeiro `terraform apply` falhou com:
+
+```
+AccessDenied: explicit deny in an identity-based policy
+```
+
+Porque as roles estavam sem:
+- Sufixo `-PPD`
+- Permissions boundary obrigatória
+
+Após a correção, o novo plan mostrou `16 to add, 0 to change, 0 to destroy` e o apply concluiu com:
+
+```
+Apply complete! Resources: 16 added, 0 changed, 0 destroyed.
+```
+
+Os recursos criados no primeiro apply (DynamoDB, KMS, SNS, SQS, CloudWatch) permaneceram intactos.
+
+#### 6. Regra para futuros recursos IAM
+
+Antes de criar qualquer nova role ou policy:
+- Consultar as roles já existentes
+- Seguir o padrão `[service-name]-ExecutionRole-PPD` para roles
+- Seguir o padrão `[service-name]-ExecutionPolicy-PPD` para policies gerenciadas
+- Aplicar a permissions boundary
+- Usar a tag `Project = "AWS-PPD"`
+- Manter least privilege
+- Abrir requisição no Help Desk quando necessário
 
 ### Cadeia de policies (permissões entre serviços)
 
@@ -252,7 +332,7 @@ aws cloudwatch describe-alarms --alarm-name-prefix connect-mcp-poc-dev --region 
 ### Depois do Terraform apply — C.2 Autorizar a Lambda Initializer
 
 > ⚠️ **PRÉ-REQUISITO:** A Lambda Initializer deve já existir na AWS.
-> Esta etapa só pode ser executada **depois do `terraform apply`**.
+> Após o apply concluído com sucesso, obtenha o ARN:
 
 ```powershell
 cd C:\proj\poc_connect\terraform
@@ -293,6 +373,10 @@ terraform output -raw initializer_lambda_arn
 - **Valor a guardar:** Contact Flow ID (visível na URL ou ARN)
 - **Validação:** O fluxo aparece como "Published" na lista.
 - **Erro comum:** Não publicar o fluxo (fica em "Draft" e não funciona).
+
+![Fluxo publicado MCP-POC-Chat-Flow](../images/MCP-POC-Chat-Flow.png)
+
+*Figura — Contact Flow publicado da POC: atributo customerLocale = pt-BR, invocação da Lambda Initializer, mensagem de sucesso, espera do participante Bot por 20 minutos e tratamento centralizado de erros.*
 
 ### Depois do Terraform apply — C.4 Criar Amazon Connect Communications Widget
 

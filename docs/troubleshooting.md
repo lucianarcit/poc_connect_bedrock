@@ -9,6 +9,8 @@
 | `filebase64sha256: no file exists` | ZIPs não gerados | `packages/` | Executar `.\scripts\build_lambdas.ps1` |
 | `Error: Unsupported Terraform Core version` | Terraform desatualizado | Terminal | Instalar Terraform >= 1.6 |
 | Plan mostra 0 resources | `terraform init` não executado | `.terraform/` ausente | `terraform init` |
+| `iam:CreateRole` com explicit deny | Role sem sufixo `-PPD` ou sem permissions boundary | `terraform/iam.tf` | Ajustar nome (terminar em `-PPD`), adicionar `permissions_boundary` e tag `Project = "AWS-PPD"`, gerar novo plan |
+| Apply parcial (alguns recursos criados, roles falharam) | Governance da conta rejeitou roles | State do Terraform | Corrigir roles e executar novo plan/apply sem destruir recursos existentes |
 
 ## Lambda Runtime
 

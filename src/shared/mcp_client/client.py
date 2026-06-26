@@ -55,7 +55,7 @@ class MCPClient(MCPClientProtocol):
         headers: dict[str, str] | None = None,
         sigv4_auth: SigV4Signer | None = None,
     ) -> None:
-        self._server_url = server_url.rstrip("/")
+        self._server_url = server_url
         self._timeout = timeout_seconds
         self._max_retries = max_retries
         self._base_headers = {
@@ -66,27 +66,96 @@ class MCPClient(MCPClientProtocol):
         self._sigv4 = sigv4_auth or NoOpSigV4Auth()
         self._session_id: str | None = None
         self._initialized = False
+        logger.info("MCPClient created server_url=%r", self._server_url)
 
     def _post(self, payload: dict, is_notification: bool = False) -> httpx.Response:
-        """Envia POST ao endpoint MCP com SigV4 e session headers."""
+        """
+        Envia POST ao endpoint MCP com SigV4 e session headers.
+
+        Redirect handling controlado:
+        - Se receber 307/308, segue o Location UMA vez com nova assinatura SigV4
+        - Rejeita redirect para host diferente
+        - Se segundo request também for 3xx, reporta redirect loop
+        """
         body = json.dumps(payload).encode("utf-8")
+        response = self._signed_post(self._server_url, body)
+
+        # Tratar redirect (uma vez)
+        if 300 <= response.status_code < 400:
+            redirect_url = self._resolve_redirect(response, self._server_url)
+            logger.info(
+                "MCP redirect original_url=%r redirect_url=%r status=%d",
+                self._server_url, redirect_url, response.status_code,
+            )
+            # Segunda tentativa com nova assinatura
+            response = self._signed_post(redirect_url, body)
+            if 300 <= response.status_code < 400:
+                second_location = response.headers.get("location", "")
+                raise MCPClientError(
+                    f"Redirect loop detected: {response.status_code} → '{second_location}'. "
+                    f"Original: '{self._server_url}', first redirect: '{redirect_url}'."
+                )
+
+        # Capturar session ID se retornado
+        session_header = response.headers.get("mcp-session-id")
+        if session_header:
+            self._session_id = session_header
+
+        return response
+
+    def _signed_post(self, url: str, body: bytes) -> httpx.Response:
+        """Executa POST assinado com SigV4 para a URL especificada."""
         headers = dict(self._base_headers)
         if self._session_id:
             headers["Mcp-Session-Id"] = self._session_id
 
         signed_headers = self._sigv4.sign_headers(
             method="POST",
-            url=self._server_url,
+            url=url,
             headers=headers,
             body=body,
         )
 
-        with httpx.Client(timeout=self._timeout) as client:
-            response = client.post(
-                self._server_url,
-                content=body,
-                headers=signed_headers,
+        logger.info("MCP signed_post url=%r", url)
+
+        with httpx.Client(timeout=self._timeout, follow_redirects=False) as client:
+            response = client.post(url, content=body, headers=signed_headers)
+
+        logger.info(
+            "MCP signed_post response status=%d content_length=%d",
+            response.status_code, len(response.content),
+        )
+        return response
+
+    def _resolve_redirect(self, response: httpx.Response, original_url: str) -> str:
+        """
+        Resolve Location do redirect. Valida same-origin.
+
+        Raises:
+            MCPClientError: se Location ausente ou host diferente.
+        """
+        from urllib.parse import urlparse, urljoin
+
+        location = response.headers.get("location", "")
+        if not location:
+            raise MCPClientError(
+                f"Redirect {response.status_code} without Location header"
             )
+
+        # Resolver URL relativa
+        resolved = urljoin(original_url, location)
+
+        # Validar same-origin (scheme + host)
+        orig_parsed = urlparse(original_url)
+        redir_parsed = urlparse(resolved)
+
+        if orig_parsed.scheme != redir_parsed.scheme or orig_parsed.netloc != redir_parsed.netloc:
+            raise MCPClientError(
+                f"Redirect to different host rejected: '{resolved}' "
+                f"(original: '{original_url}')"
+            )
+
+        return resolved
 
         # Capturar session ID se retornado
         session_header = response.headers.get("mcp-session-id")

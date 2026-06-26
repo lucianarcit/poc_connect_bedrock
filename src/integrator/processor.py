@@ -74,6 +74,8 @@ class MessageProcessor:
         mcp_timeout = float(os.environ.get("MCP_TIMEOUT_SECONDS", "10"))
         mcp_retries = int(os.environ.get("MCP_MAX_RETRIES", "2"))
 
+        logger.info("Processor MCP_SERVER_URL env=%r", mcp_url)
+
         if kms_key_id:
             kms_client = boto3.client("kms", region_name=region)
             crypto: CryptoService = KMSCryptoService(kms_client, kms_key_id)

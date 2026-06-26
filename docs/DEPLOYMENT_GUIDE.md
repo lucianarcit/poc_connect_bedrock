@@ -792,6 +792,10 @@ Acessar: `http://localhost:8080`
 >
 > O texto em inglês no preview do widget no console Connect é apenas demonstração visual. O bot responde em português conforme o `customerLocale = pt-BR` e os documentos em `sample_documents/`.
 
+![Widget de chat funcionando localmente](../images/chat.png)
+
+*Figura — Communications Widget carregado em `http://localhost:8080`, pronto para interação com o bot.*
+
 ---
 
 ## I. Testes Ponta a Ponta

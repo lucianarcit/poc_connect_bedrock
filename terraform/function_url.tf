@@ -10,10 +10,4 @@
 resource "aws_lambda_function_url" "mcp_server" {
   function_name      = aws_lambda_function.mcp_server.function_name
   authorization_type = "AWS_IAM"
-
-  cors {
-    allow_origins = [] # Sem CORS — invocação server-to-server apenas
-    allow_methods = []
-    allow_headers = []
-  }
 }

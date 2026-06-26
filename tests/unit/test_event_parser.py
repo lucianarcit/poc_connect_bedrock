@@ -222,12 +222,47 @@ class TestSkipEvents:
         assert "empty_content" in results[0].skip_reason
 
     def test_skip_unsupported_content_type(self):
-        """ContentType não-text/plain deve ser ignorado."""
+        """ContentType não suportado (ex: application/json) deve ser ignorado."""
         record = _valid_sqs_record(content_type="application/json")
         results = parse_sqs_batch(_sqs_event(record))
 
         assert results[0].chat_message is None
         assert "unsupported_content_type" in results[0].skip_reason
+
+    def test_accept_text_plain(self):
+        """ContentType text/plain deve ser aceito."""
+        record = _valid_sqs_record(content_type="text/plain")
+        results = parse_sqs_batch(_sqs_event(record))
+
+        assert results[0].chat_message is not None
+        assert results[0].chat_message.content_type == "text/plain"
+
+    def test_accept_text_markdown(self):
+        """ContentType text/markdown deve ser aceito (Amazon Connect pode enviar)."""
+        record = _valid_sqs_record(content_type="text/markdown", content="**negrito**")
+        results = parse_sqs_batch(_sqs_event(record))
+
+        assert results[0].chat_message is not None
+        assert results[0].chat_message.content_type == "text/markdown"
+        assert results[0].chat_message.content == "**negrito**"
+
+    def test_skip_interactive_content_type(self):
+        """ContentType interativo deve ser ignorado."""
+        record = _valid_sqs_record(
+            content_type="application/vnd.amazonaws.connect.message.interactive"
+        )
+        results = parse_sqs_batch(_sqs_event(record))
+
+        assert results[0].chat_message is None
+        assert "unsupported_content_type" in results[0].skip_reason
+
+    def test_skip_event_type_messagemetadata(self):
+        """Type=MESSAGEMETADATA deve ser ignorado."""
+        record = _valid_sqs_record(event_type="MESSAGEMETADATA")
+        results = parse_sqs_batch(_sqs_event(record))
+
+        assert results[0].chat_message is None
+        assert "event_type_not_message" in results[0].skip_reason
 
     def test_skip_does_not_raise(self):
         """Skip events nunca devem gerar EventParsingError."""

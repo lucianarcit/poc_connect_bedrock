@@ -3,9 +3,12 @@ MCP Server fictício de suporte — definição do servidor FastMCP.
 
 Usa o SDK oficial `mcp` com FastMCP em modo stateless HTTP.
 As tools são registradas com decoradores @mcp.tool().
-"""
 
-from __future__ import annotations
+NOTA: Este módulo NÃO usa 'from __future__ import annotations' porque o
+FastMCP inspeciona as anotações de tipo dos parâmetros com issubclass().
+Com annotations postponed (PEP 563), as anotações viram strings e
+issubclass() falha com: TypeError: issubclass() arg 1 must be a class.
+"""
 
 import os
 from pathlib import Path

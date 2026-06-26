@@ -129,11 +129,35 @@ class MessageProcessor:
         tool_name = self._selector.select_tool(msg.content)
         arguments = self._selector.build_arguments(tool_name, msg.content)
 
+        logger.info(
+            "Calling MCP Server",
+            extra={
+                "contact_id": msg.contact_id,
+                "message_id": msg.message_id,
+                "tool_name": tool_name,
+                "mcp_url": self._mcp._server_url,
+            },
+        )
+
         try:
             mcp_result = self._mcp.call_tool(tool_name, arguments)
-        except MCPClientError:
-            # Erro não encapsulado — transitório
+        except MCPClientError as e:
+            logger.warning(
+                "MCP call exception (transient)",
+                extra={"contact_id": msg.contact_id, "error": str(e)},
+            )
             return True  # fail item → retry
+
+        logger.info(
+            "MCP call completed",
+            extra={
+                "contact_id": msg.contact_id,
+                "tool_name": tool_name,
+                "success": mcp_result.success,
+                "latency_ms": round(mcp_result.latency_ms, 1),
+                "error": mcp_result.error if not mcp_result.success else None,
+            },
+        )
 
         if not mcp_result.success:
             if _is_transient_mcp_error(mcp_result):
@@ -145,6 +169,15 @@ class MessageProcessor:
 
         # 3. Formatar resposta
         response_text = self._format_mcp_response(tool_name, mcp_result)
+
+        logger.info(
+            "Sending response to chat",
+            extra={
+                "contact_id": msg.contact_id,
+                "message_id": msg.message_id,
+                "response_length": len(response_text),
+            },
+        )
 
         # 4. Enviar resposta ao chat
         return self._send_response(msg, session, idempotency_repo, response_text)

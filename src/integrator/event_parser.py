@@ -39,6 +39,12 @@ _EVENT_CONTENT_TYPES = {
     "application/vnd.amazonaws.connect.event.chat.ended",
 }
 
+# Content types aceitos como mensagens de texto processáveis
+_SUPPORTED_CONTENT_TYPES = {
+    "text/plain",
+    "text/markdown",
+}
+
 
 def parse_sqs_batch(event: dict[str, Any]) -> list[ParsedSQSRecord | EventParsingError]:
     """
@@ -95,11 +101,24 @@ def _parse_single_record(record: dict[str, Any], sqs_message_id: str) -> ParsedS
             sqs_message_id=sqs_message_id,
         )
 
+    # Log das chaves presentes no envelope para diagnóstico
+    envelope_keys = sorted(sns_envelope.keys())
+    sns_type = sns_envelope.get("Type", "")
+    logger.info(
+        "SNS envelope parsed",
+        extra={
+            "sqs_message_id": sqs_message_id,
+            "envelope_keys": envelope_keys,
+            "sns_type": sns_type,
+            "has_message_field": "Message" in sns_envelope,
+        },
+    )
+
     # Extrair campo Message do envelope SNS
     message_raw = sns_envelope.get("Message")
     if message_raw is None:
         raise EventParsingError(
-            message="Envelope SNS sem campo 'Message'",
+            message=f"Envelope SNS sem campo 'Message'. Chaves presentes: {envelope_keys}",
             sqs_message_id=sqs_message_id,
         )
 
@@ -117,6 +136,19 @@ def _parse_single_record(record: dict[str, Any], sqs_message_id: str) -> ParsedS
             message=f"Campo 'Message' não é um objeto JSON (tipo: {type(connect_event).__name__})",
             sqs_message_id=sqs_message_id,
         )
+
+    # Log das chaves do evento Connect para diagnóstico
+    connect_keys = sorted(connect_event.keys())
+    logger.info(
+        "Connect event parsed",
+        extra={
+            "sqs_message_id": sqs_message_id,
+            "connect_event_keys": connect_keys,
+            "event_type": connect_event.get("Type", "MISSING"),
+            "participant_role": connect_event.get("ParticipantRole", "MISSING"),
+            "content_type": connect_event.get("ContentType", "MISSING"),
+        },
+    )
 
     # Classificar o evento
     return _classify_connect_event(connect_event, sqs_message_id, body_length)
@@ -164,8 +196,8 @@ def _classify_connect_event(
             raw_body_length=body_length,
         )
 
-    # Skip: content type não é texto plano
-    if content_type != "text/plain":
+    # Skip: content type não é texto suportado
+    if content_type not in _SUPPORTED_CONTENT_TYPES:
         return ParsedSQSRecord(
             sqs_message_id=sqs_message_id,
             chat_message=None,

@@ -61,6 +61,10 @@ def handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
     Record sem SQS messageId: falha o batch inteiro (raise).
     """
     records = event.get("Records", [])
+    logger.info(
+        "Integrator invoked",
+        extra={"record_count": len(records)},
+    )
 
     # Validar que todos os records têm messageId
     for i, record in enumerate(records):
@@ -96,9 +100,10 @@ def handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
 
         # Skip (evento irrelevante) → sucesso
         if result.chat_message is None:
-            logger.debug("Skipped event", extra={
+            logger.info("Skipped event", extra={
                 "sqs_message_id": result.sqs_message_id,
                 "reason": result.skip_reason,
+                "body_length": result.raw_body_length,
             })
             continue
 
@@ -106,9 +111,22 @@ def handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
         msg = result.chat_message
         sqs_id = result.sqs_message_id
 
+        logger.info(
+            "Processing message",
+            extra={
+                "sqs_message_id": sqs_id,
+                "message_id": msg.message_id,
+                "contact_id": msg.contact_id,
+                "participant_role": msg.participant_role,
+                "content_type": msg.content_type,
+                "content_length": len(msg.content),
+            },
+        )
+
         try:
             acquire_result = idempotency_repo.try_acquire(msg.message_id, msg.contact_id)
         except DynamoDBTransientError:
+            logger.warning("Idempotency acquire transient error", extra={"message_id": msg.message_id})
             failures.append({"itemIdentifier": sqs_id})
             continue
 
@@ -121,13 +139,21 @@ def handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
             continue
 
         if acquire_result == AcquireResult.ALREADY_PROCESSING:
-            # Não considerar sucesso — fail item para retry após lease expirar
+            logger.info("Already processing (lease active)", extra={"message_id": msg.message_id})
             failures.append({"itemIdentifier": sqs_id})
             continue
 
         # ACQUIRED — processar
+        logger.info("Lease acquired, calling processor", extra={"message_id": msg.message_id})
         should_fail = processor.process(msg, idempotency_repo)
         if should_fail:
+            logger.warning("Processor returned should_fail=True", extra={"message_id": msg.message_id})
             failures.append({"itemIdentifier": sqs_id})
+        else:
+            logger.info("Message processed successfully", extra={"message_id": msg.message_id})
 
+    logger.info(
+        "Integrator completed",
+        extra={"total_records": len(records), "failures": len(failures)},
+    )
     return {"batchItemFailures": failures}

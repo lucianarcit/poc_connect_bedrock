@@ -13,14 +13,12 @@
 > - MCP Server Function URL — ✅ criada
 > - Event Source Mapping SQS → Integrator — ✅ criado
 > - IAM Roles com sufixo `-PPD` e permissions boundary — ✅ criadas
-> - Lambda Initializer autorizada no Amazon Connect — ⏳ pendente
-> - Contact Flow — ⏳ pendente
-> - Communications Widget — ⏳ pendente
+> - Lambda Initializer autorizada no Amazon Connect — ✅ concluído
+> - Contact Flow — ✅ publicado ([JSON exportado](flows/MCP-POC-Chat-Flow.json))
+> - Communications Widget — ✅ criado (`MCP-POC-Chat-Widget`, canal Chat, domínio `http://localhost:8080`)
 >
-> **Próximos passos (manuais):**
-> 1. Autorizar `connect-mcp-poc-dev-initializer` na instância Amazon Connect
-> 2. Criar o Contact Flow de Chat (`MCP-POC-Chat-Flow`)
-> 3. Criar o Communications Widget em português
+> **Próximos passos:**
+> 1. Testar ponta a ponta (servir `test-widget/` localmente e interagir com o bot)
 >
 > **Última atualização:** Junho 2026
 > **Ambiente de referência:** Windows 11, PowerShell, AWS CLI v2, Terraform >= 1.6
@@ -400,30 +398,119 @@ aws connect describe-contact-flow `
   --profile connect-poc `
   --region us-east-1 `
   --query "ContactFlow.Content" `
-  --output text > docs/contact-flow.json
+  --output text > docs/flows/MCP-POC-Chat-Flow.json
 ```
 
 Substitua `<CONTACT_FLOW_ID>` pelo ID retornado no comando anterior.
 
-O arquivo `docs/contact-flow.json` contém a definição completa do fluxo e pode ser usado para:
+O arquivo `docs/flows/MCP-POC-Chat-Flow.json` contém a definição completa do fluxo e pode ser usado para:
 - Recriar o fluxo em outra instância
 - Documentar a configuração exata
 - Comparar alterações futuras
 
+### JSON do Contact Flow
+
+O JSON exportado do flow publicado está disponível em:
+[`MCP-POC-Chat-Flow.json`](flows/MCP-POC-Chat-Flow.json)
+
 ### Depois do Terraform apply — C.4 Criar Amazon Connect Communications Widget
 
 - **Serviço:** Amazon Connect (admin website)
-- **Console:** Admin website da instância → Channels → Chat → Communication Widget
-- **Passos:**
-  1. Criar novo widget
-  2. Associar ao Contact Flow criado (`MCP-POC-Chat-Flow`)
-  3. Configurar domínios permitidos:
-     - Para teste local: `http://localhost:8080`
-     - Para produção: domínio real
-  4. Copiar o snippet JavaScript gerado
-  5. Incorporar em uma página HTML de teste
-- **Validação:** Widget abre no browser e conecta ao chat.
-- **Erro comum:** Domínio de origem não permitido (widget não carrega).
+- **Console:** Admin website da instância → Channels → Communication widgets
+
+#### Passos
+
+1. No admin website (`https://<alias>.my.connect.aws`), abrir o menu lateral
+2. Entrar em **Channels**
+3. Clicar em **Communication widgets**
+4. Clicar em **Add communication widget**
+
+#### Primeira tela — Identificação e canais
+
+| Campo | Valor |
+|-------|-------|
+| Name | `MCP-POC-Chat-Widget` |
+| Description | `Widget de chat da POC Amazon Connect + MCP` |
+| Communication options | ✅ **Chat** apenas |
+
+> ❌ Não habilitar: chamada web, vídeo, e-mail ou tarefas (não utilizados nesta POC).
+
+#### Seleção de fluxo
+
+Quando aparecer a seleção de Contact Flow, escolher:
+
+```
+MCP-POC-Chat-Flow
+```
+
+> O nome do widget deve ser exclusivo dentro da instância.
+
+#### Idioma e textos (personalizar em português)
+
+| Elemento | Valor sugerido |
+|----------|---------------|
+| Título | `Atendimento virtual` |
+| Botão | `Iniciar conversa` |
+| Mensagem inicial | `Olá! Como posso ajudar?` |
+| Campo de mensagem (placeholder) | `Digite sua mensagem...` |
+
+> **Nota:** O atributo `customerLocale = pt-BR` configurado no Contact Flow controla o idioma da aplicação. A personalização aqui controla apenas a interface visível ao usuário no widget.
+
+#### Domínio permitido
+
+Para teste local, adicionar exatamente:
+
+```
+http://localhost:8080
+```
+
+> ⚠️ **O protocolo faz parte da validação.** `http://localhost:8080` e `https://localhost:8080` são origens diferentes. A AWS exige correspondência exata.
+>
+> ❌ Não abrir a página via `file:///C:/...` — isso não corresponde a nenhum domínio autorizado. Servir via `python -m http.server 8080`.
+
+#### Snippet gerado
+
+Ao concluir, o Connect gera um snippet HTML/JavaScript. O widget é hospedado pelo próprio Amazon Connect; o snippet apenas o carrega no site autorizado.
+
+![Communications Widget configurado](../images/MCP-POC-Chat-Widget.png)
+
+*Figura — Communications Widget da POC configurado com chat habilitado, associado ao flow MCP-POC-Chat-Flow.*
+
+Exemplo do snippet gerado para esta POC:
+
+```html
+<script type="text/javascript">
+  (function(w, d, x, id){
+    s=d.createElement('script');
+    s.src='https://mcp-poc-dev.my.connect.aws/connectwidget/static/amazon-connect-chat-interface-client.js';
+    s.async=1;
+    s.id=id;
+    d.getElementsByTagName('head')[0].appendChild(s);
+    w[x] = w[x] || function() { (w[x].ac = w[x].ac || []).push(arguments) };
+  })(window, document, 'amazon_connect', 'a237133e-48f0-4621-b5c7-6aa66368074e');
+
+  amazon_connect('styles', {
+    iconType: 'CHAT',
+    openChat: { color: '#ffffff', backgroundColor: '#123456' },
+    closeChat: { color: '#ffffff', backgroundColor: '#123456'}
+  });
+
+  amazon_connect('snippetId', 'QVFJREFIaEZ5ZjhlbTkwTGlJQ0RQVlozbFpkalBOMm91NWh2aGNUZHZhTTZac1lEMndGalJMcmNPNXEyb3dBR2IxTmRkRUVpQUFBQWJqQnNCZ2txaGtpRzl3MEJCd2FnWHpCZEFnRUFNRmdHQ1NxR1NJYjNEUUVIQVRBZUJnbGdoa2dCWlFNRUFTNHdFUVFNTm82R3RTZlBSVldhYm0vMEFnRVFnQ3ZIcUp0V3FKQkt4KzJtNmt5Wjg3alFMdVB0ZGhGd3RqbjZNWG4yejhCUTZGejNSbE10V3FsTXlYUHQ6OmFZdkhJNWRWZlBDZ21BWUhkWG1xNlhNQXhMSEZ3S3poSThZV3FFTURaUC91ZGp1cHdJcUk5dXg5THBCZ1JhYStKT0hEenJQREFhV0FFMm1EZW9MRjVtdFcwQlFRbFRiNTNWRWNzQVBWcDZMK05pTDBrVmdFVnk5V0grclFtQmVnUFd0MDlIUUpLeU5nQlRrMzRKUi91QlB2cHlmc0RjRT0=');
+
+  amazon_connect('supportedMessagingContentTypes', [
+    'text/plain',
+    'text/markdown',
+    'application/vnd.amazonaws.connect.message.interactive',
+    'application/vnd.amazonaws.connect.message.interactive.response'
+  ]);
+</script>
+```
+
+- Copiar o snippet e inserir na página HTML de teste (seção H.6)
+- O `snippetId` é específico desta instância e widget — não reutilizar em outra instância
+
+- **Validação:** Widget renderiza no browser ao acessar `http://localhost:8080`.
+- **Erro comum:** Protocolo não correspondente (`https` vs `http`); domínio sem porta; página aberta via `file://`.
 
 ### Depois do Terraform apply — C.5 Confirmar Subscription de E-mail (Alarmes)
 
@@ -686,13 +773,24 @@ aws logs tail "/aws/lambda/connect-mcp-poc-dev-initializer" --since 5m --region 
 
 ### H.6 Página HTML de teste
 
+A página de teste já está criada no projeto:
+
+```
+test-widget/index.html
+```
+
+Servir localmente:
+
 ```powershell
+cd C:\proj\poc_connect\test-widget
 python -m http.server 8080
 ```
 
-Acessar: `http://localhost:8080/test.html`
+Acessar: `http://localhost:8080`
 
-> **Nota:** `file://` não funciona — o widget requer origem HTTP.
+> **Nota:** `file://` não funciona — o widget requer origem HTTP correspondente ao domínio autorizado (`http://localhost:8080`).
+>
+> O texto em inglês no preview do widget no console Connect é apenas demonstração visual. O bot responde em português conforme o `customerLocale = pt-BR` e os documentos em `sample_documents/`.
 
 ---
 

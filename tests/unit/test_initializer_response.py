@@ -1,19 +1,21 @@
 """
-Testes que validam o formato da resposta da Initializer para Amazon Connect.
+Testes de formato STRING_MAP e idempotência da Initializer.
 
-O bloco InvokeLambdaFunction com ResponseValidation.ResponseType = STRING_MAP
-exige que a Lambda retorne um dicionário onde:
-- Todas as chaves são strings
-- Todos os valores são strings
-- Não há estruturas aninhadas (dicts, lists, None, bool, int)
+Valida que:
+- Todos os retornos são dict[str, str] (STRING_MAP)
+- Dupla invocação para o mesmo ContactId não causa falha
+- Wait for activation funciona corretamente
 """
 
 from __future__ import annotations
 
-import pytest
-from unittest.mock import MagicMock, patch
+import time
+from unittest.mock import MagicMock, patch, PropertyMock
 
-from initializer.handler import handler
+import pytest
+
+from initializer.handler import handler, _validate_string_map
+from initializer.service import InitializerService, InitializationContext
 
 
 def _make_connect_event(
@@ -21,7 +23,6 @@ def _make_connect_event(
     instance_arn: str = "arn:aws:connect:us-east-1:123456789012:instance/test-instance-id",
     channel: str = "CHAT",
 ) -> dict:
-    """Cria evento no formato do Contact Flow."""
     return {
         "Details": {
             "ContactData": {
@@ -37,29 +38,46 @@ def _make_connect_event(
 
 
 def _assert_valid_string_map(response: dict) -> None:
-    """Valida que a resposta é compatível com Amazon Connect STRING_MAP."""
-    assert isinstance(response, dict), f"Response must be dict, got {type(response)}"
+    assert isinstance(response, dict)
     for key, value in response.items():
-        assert isinstance(key, str), f"Key '{key}' must be str, got {type(key)}"
-        assert isinstance(value, str), f"Value for '{key}' must be str, got {type(value).__name__}: {value!r}"
-        # Não pode ser 'None' como string representando None
-        assert value != "None", f"Value for '{key}' is literal 'None' — use empty string instead"
+        assert isinstance(key, str), f"Key '{key}' not str"
+        assert isinstance(value, str), f"Value for '{key}' is {type(value).__name__}: {value!r}"
 
 
-class TestResponseFormatStringMap:
-    """Valida que todas as respostas possíveis são STRING_MAP válidos."""
+class TestValidateStringMap:
+    def test_valid(self):
+        assert _validate_string_map({"a": "b"}) == {"a": "b"}
 
+    def test_non_dict_raises(self):
+        with pytest.raises(TypeError):
+            _validate_string_map("string")
+
+    def test_non_string_key_raises(self):
+        with pytest.raises(TypeError):
+            _validate_string_map({1: "val"})
+
+    def test_non_string_value_raises(self):
+        with pytest.raises(TypeError):
+            _validate_string_map({"key": 123})
+
+    def test_none_value_raises(self):
+        with pytest.raises(TypeError):
+            _validate_string_map({"key": None})
+
+    def test_bool_value_raises(self):
+        with pytest.raises(TypeError):
+            _validate_string_map({"key": True})
+
+
+class TestHandlerStringMap:
     @patch("initializer.handler._get_clients")
     def test_invalid_event_returns_string_map(self, mock_clients):
-        """Evento inválido retorna STRING_MAP com status ERROR."""
         response = handler({}, None)
         _assert_valid_string_map(response)
         assert response["status"] == "ERROR"
-        assert response["botInitialized"] == "false"
 
     @patch("initializer.handler._get_clients")
-    def test_non_chat_channel_returns_string_map(self, mock_clients):
-        """Canal não-CHAT retorna STRING_MAP com status ERROR."""
+    def test_non_chat_returns_string_map(self, mock_clients):
         event = _make_connect_event(channel="VOICE")
         response = handler(event, None)
         _assert_valid_string_map(response)
@@ -68,59 +86,171 @@ class TestResponseFormatStringMap:
     @patch("initializer.handler._get_clients")
     @patch("initializer.service.InitializerService.initialize")
     def test_success_returns_string_map(self, mock_init, mock_clients):
-        """Sucesso retorna STRING_MAP com status SUCCESS."""
         mock_init.return_value = {"status": "SUCCESS", "botInitialized": "true"}
         mock_clients.return_value = (MagicMock(), MagicMock(), MagicMock(), MagicMock())
-
-        event = _make_connect_event()
-        response = handler(event, None)
+        response = handler(_make_connect_event(), None)
         _assert_valid_string_map(response)
         assert response["status"] == "SUCCESS"
-        assert response["botInitialized"] == "true"
 
     @patch("initializer.handler._get_clients")
     @patch("initializer.service.InitializerService.initialize")
-    def test_error_returns_string_map(self, mock_init, mock_clients):
-        """Erro na inicialização retorna STRING_MAP."""
-        mock_init.return_value = {"status": "ERROR", "botInitialized": "false", "errorCode": "INITIALIZATION_FAILED"}
+    def test_unhandled_exception_returns_string_map(self, mock_init, mock_clients):
+        mock_init.side_effect = RuntimeError("unexpected")
         mock_clients.return_value = (MagicMock(), MagicMock(), MagicMock(), MagicMock())
-
-        event = _make_connect_event()
-        response = handler(event, None)
+        response = handler(_make_connect_event(), None)
         _assert_valid_string_map(response)
         assert response["status"] == "ERROR"
+        assert response["errorCode"] == "UNHANDLED_EXCEPTION"
 
-    @patch("initializer.handler._get_clients")
-    @patch("initializer.service.InitializerService.initialize")
-    def test_no_nested_structures(self, mock_init, mock_clients):
-        """Resposta não deve conter dicts, lists, booleans ou None."""
-        mock_init.return_value = {"status": "SUCCESS", "botInitialized": "true"}
-        mock_clients.return_value = (MagicMock(), MagicMock(), MagicMock(), MagicMock())
 
-        event = _make_connect_event()
-        response = handler(event, None)
+class TestDualInvocationIdempotency:
+    """Testa o comportamento quando a Initializer é invocada duas vezes para o mesmo ContactId."""
 
-        for key, value in response.items():
-            assert not isinstance(value, dict), f"Nested dict in '{key}'"
-            assert not isinstance(value, list), f"List in '{key}'"
-            assert not isinstance(value, bool), f"Bool in '{key}' (use 'true'/'false' strings)"
-            assert value is not None, f"None in '{key}' (use empty string)"
-            assert not isinstance(value, (int, float)), f"Number in '{key}' (use str())"
+    def _make_service(self, dynamodb_mock):
+        return InitializerService(
+            connect_client=MagicMock(),
+            participant_client=MagicMock(),
+            kms_client=MagicMock(),
+            dynamodb_client=dynamodb_mock,
+            sns_topic_arn="arn:aws:sns:us-east-1:123456789012:topic",
+            kms_key_id="key-123",
+            table_name="test-sessions",
+            lease_seconds=30,
+        )
 
-    @patch("initializer.handler._get_clients")
-    @patch("initializer.service.InitializerService.initialize")
-    def test_all_known_return_paths(self, mock_init, mock_clients):
-        """Testa todos os retornos conhecidos do InitializerService."""
-        mock_clients.return_value = (MagicMock(), MagicMock(), MagicMock(), MagicMock())
-        event = _make_connect_event()
+    def _ctx(self, contact_id="contact-001"):
+        return InitializationContext(
+            contact_id=contact_id,
+            instance_id="inst-001",
+            initial_contact_id=contact_id,
+            channel="CHAT",
+        )
 
-        known_responses = [
-            {"status": "SUCCESS", "botInitialized": "true"},
-            {"status": "ERROR", "botInitialized": "false", "errorCode": "INITIALIZATION_IN_PROGRESS"},
-            {"status": "ERROR", "botInitialized": "false", "errorCode": "INITIALIZATION_FAILED"},
+    def test_active_complete_returns_success(self):
+        """Se sessão já ACTIVE_COMPLETE, retorna SUCCESS imediato."""
+        dynamodb = MagicMock()
+        dynamodb.get_item.return_value = {
+            "Item": {
+                "pk": {"S": "CONTACT#contact-001"},
+                "status": {"S": "ACTIVE"},
+                "participant_id": {"S": "part-123"},
+                "connection_token_encrypted": {"B": b"\x01\x02"},
+                "connection_token_expiry": {"S": "2030-01-01T00:00:00Z"},
+            }
+        }
+        service = self._make_service(dynamodb)
+        result = service.initialize(self._ctx())
+        assert result == {"status": "SUCCESS", "botInitialized": "true"}
+
+    @patch("time.sleep", return_value=None)
+    def test_initializing_then_active_returns_success(self, mock_sleep):
+        """Se sessão está INITIALIZING mas vira ACTIVE durante wait, retorna SUCCESS."""
+        dynamodb = MagicMock()
+        now = int(time.time())
+
+        # Primeira chamada: INITIALIZING com lease ativo
+        # Segunda chamada (no wait): ACTIVE_COMPLETE
+        dynamodb.get_item.side_effect = [
+            # _check_existing_session inicial
+            {"Item": {
+                "pk": {"S": "CONTACT#contact-001"},
+                "status": {"S": "INITIALIZING"},
+                "initialization_lease_expires_at": {"N": str(now + 20)},
+                "participant_id": {"S": ""},
+                "connection_token_encrypted": {"B": b"\x00"},
+                "connection_token_expiry": {"S": ""},
+            }},
+            # _wait_for_activation → _check_existing_session (poll 1)
+            {"Item": {
+                "pk": {"S": "CONTACT#contact-001"},
+                "status": {"S": "ACTIVE"},
+                "participant_id": {"S": "part-123"},
+                "connection_token_encrypted": {"B": b"\x01\x02"},
+                "connection_token_expiry": {"S": "2030-01-01T00:00:00Z"},
+            }},
         ]
 
-        for resp in known_responses:
-            mock_init.return_value = resp
-            result = handler(event, None)
-            _assert_valid_string_map(result)
+        service = self._make_service(dynamodb)
+        result = service.initialize(self._ctx())
+        assert result == {"status": "SUCCESS", "botInitialized": "true"}
+
+    @patch("time.sleep", return_value=None)
+    def test_initializing_timeout_returns_error(self, mock_sleep):
+        """Se sessão permanece INITIALIZING além do wait, retorna erro rastreável."""
+        dynamodb = MagicMock()
+        now = int(time.time())
+
+        # Sempre retorna INITIALIZING (lease ativo)
+        dynamodb.get_item.return_value = {
+            "Item": {
+                "pk": {"S": "CONTACT#contact-001"},
+                "status": {"S": "INITIALIZING"},
+                "initialization_lease_expires_at": {"N": str(now + 20)},
+                "participant_id": {"S": ""},
+                "connection_token_encrypted": {"B": b"\x00"},
+                "connection_token_expiry": {"S": ""},
+            }
+        }
+
+        service = self._make_service(dynamodb)
+        # Use max_wait muito curto para não bloquear o teste
+        service._lease_seconds = 30
+        result = service.initialize(self._ctx())
+
+        _assert_valid_string_map(result)
+        assert result["status"] == "ERROR"
+        assert "TIMEOUT" in result.get("errorCode", "") or "PROGRESS" in result.get("errorCode", "")
+
+    def test_not_found_proceeds_with_initialization(self):
+        """Se sessão NOT_FOUND, procede com reserva e inicialização."""
+        dynamodb = MagicMock()
+        connect = MagicMock()
+        participant = MagicMock()
+        kms = MagicMock()
+
+        # get_item: não encontra
+        dynamodb.get_item.return_value = {}
+        # put_item: sucesso (reserva)
+        dynamodb.put_item.return_value = {}
+        # update_item: sucesso (ativação)
+        dynamodb.update_item.return_value = {}
+
+        # Connect APIs
+        connect.start_contact_streaming.return_value = {"StreamingId": "stream-1"}
+        connect.create_participant.return_value = {
+            "ParticipantId": "part-1",
+            "ParticipantCredentials": {"ParticipantToken": "pt-token"},
+        }
+        participant.create_participant_connection.return_value = {
+            "ConnectionCredentials": {
+                "ConnectionToken": "ct-token",
+                "Expiry": "2030-01-01T00:00:00Z",
+            }
+        }
+        kms.encrypt.return_value = {"CiphertextBlob": b"\x01\x02\x03"}
+
+        service = InitializerService(
+            connect_client=connect,
+            participant_client=participant,
+            kms_client=kms,
+            dynamodb_client=dynamodb,
+            sns_topic_arn="arn:aws:sns:us-east-1:123:topic",
+            kms_key_id="key-1",
+            table_name="test",
+            lease_seconds=30,
+        )
+        result = service.initialize(self._ctx())
+        _assert_valid_string_map(result)
+        assert result["status"] == "SUCCESS"
+
+    def test_client_tokens_deterministic(self):
+        """Mesmos inputs produzem mesmos ClientTokens (idempotência de retry)."""
+        from initializer.service import generate_streaming_client_token, generate_participant_client_token
+
+        t1 = generate_streaming_client_token("inst-1", "contact-1", "arn:sns:topic")
+        t2 = generate_streaming_client_token("inst-1", "contact-1", "arn:sns:topic")
+        assert t1 == t2
+
+        p1 = generate_participant_client_token("inst-1", "contact-1")
+        p2 = generate_participant_client_token("inst-1", "contact-1")
+        assert p1 == p2

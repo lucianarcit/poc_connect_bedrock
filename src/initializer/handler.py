@@ -56,22 +56,29 @@ def handler(event: dict[str, Any], context: Any) -> dict[str, str]:
     Retorna dict STRING_MAP compatível com Amazon Connect Contact Flow.
     Todos os valores DEVEM ser strings.
     """
+    request_id = getattr(context, "aws_request_id", "local") if context else "local"
+
     logger.info(
-        "Initializer invoked",
-        extra={"event_keys": sorted(event.keys()) if isinstance(event, dict) else "not_dict"},
+        "Initializer invoked request_id=%s event_keys=%s",
+        request_id,
+        sorted(event.keys()) if isinstance(event, dict) else "not_dict",
     )
 
     try:
         ctx = extract_context(event)
     except ValueError as e:
-        logger.error("Invalid event", extra={"error": str(e)})
+        logger.error("Initializer invalid_event request_id=%s error=%s", request_id, str(e))
         response = {
             "status": "ERROR",
             "botInitialized": "false",
             "errorCode": "INVALID_EVENT",
         }
-        _log_response(response)
-        return response
+        return _validate_string_map(response)
+
+    logger.info(
+        "Initializer context contact_id=%s initial_contact_id=%s instance_id=%s request_id=%s",
+        ctx.contact_id, ctx.initial_contact_id, ctx.instance_id, request_id,
+    )
 
     connect, participant, kms, dynamodb = _get_clients()
 
@@ -89,11 +96,9 @@ def handler(event: dict[str, Any], context: Any) -> dict[str, str]:
     try:
         response = service.initialize(ctx)
     except Exception as e:
-        # Captura qualquer exceção não tratada pelo service.initialize()
-        # Garante que o Contact Flow sempre recebe STRING_MAP válido
         logger.error(
-            "Unhandled exception in InitializerService",
-            extra={"contact_id": ctx.contact_id, "error_type": type(e).__name__, "error": str(e)},
+            "Initializer unhandled_exception contact_id=%s error_type=%s error=%s request_id=%s",
+            ctx.contact_id, type(e).__name__, str(e), request_id,
         )
         response = {
             "status": "ERROR",
@@ -101,18 +106,26 @@ def handler(event: dict[str, Any], context: Any) -> dict[str, str]:
             "errorCode": "UNHANDLED_EXCEPTION",
         }
 
-    _log_response(response)
-    return response
-
-
-def _log_response(response: dict[str, str]) -> None:
-    """Log seguro da resposta retornada ao Contact Flow (sem tokens)."""
     logger.info(
-        "Initializer response",
-        extra={
-            "response_type": type(response).__name__,
-            "response_keys": sorted(response.keys()) if isinstance(response, dict) else None,
-            "value_types": {k: type(v).__name__ for k, v in response.items()} if isinstance(response, dict) else None,
-            "status": response.get("status") if isinstance(response, dict) else None,
-        },
+        "Initializer response contact_id=%s status=%s error_code=%s keys=%s value_types=%s request_id=%s",
+        ctx.contact_id,
+        response.get("status"),
+        response.get("errorCode", ""),
+        list(response.keys()),
+        {k: type(v).__name__ for k, v in response.items()},
+        request_id,
     )
+
+    return _validate_string_map(response)
+
+
+def _validate_string_map(response: object) -> dict[str, str]:
+    """Valida que a resposta é STRING_MAP compatível com Amazon Connect."""
+    if not isinstance(response, dict):
+        raise TypeError(f"Initializer response must be a dict, got {type(response)}")
+    if not all(isinstance(k, str) for k in response):
+        raise TypeError("Initializer response keys must be strings")
+    if not all(isinstance(v, str) for v in response.values()):
+        bad = {k: type(v).__name__ for k, v in response.items() if not isinstance(v, str)}
+        raise TypeError(f"Initializer response values must be strings, got: {bad}")
+    return response

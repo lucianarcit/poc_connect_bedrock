@@ -138,22 +138,55 @@ class InitializerService:
         """
         Executa a inicialização completa.
 
+        Idempotência para dupla invocação:
+        - ACTIVE_COMPLETE → SUCCESS imediato
+        - INITIALIZING_LEASE_ACTIVE → aguarda brevemente até ACTIVE ou timeout
+        - NOT_FOUND/LEASE_EXPIRED → reserva e inicializa
+
         Returns:
-            Dict com status SUCCESS ou ERROR para o Contact Flow.
+            Dict STRING_MAP com status SUCCESS ou ERROR para o Contact Flow.
         """
+        import time as _time
+
+        start_ms = int(_time.time() * 1000)
+
         try:
             # Verificar se já inicializada
             existing = self._check_existing_session(ctx.contact_id)
+
+            logger.info(
+                "Initializer session_check contact_id=%s existing_state=%s",
+                ctx.contact_id, existing,
+            )
+
             if existing == "ACTIVE_COMPLETE":
-                logger.info("Session already active", extra={"contact_id": ctx.contact_id})
                 return {"status": "SUCCESS", "botInitialized": "true"}
-            elif existing == "INITIALIZING_LEASE_ACTIVE":
-                logger.warning("Initialization in progress (lease active)", extra={"contact_id": ctx.contact_id})
-                return {"status": "ERROR", "botInitialized": "false", "errorCode": "INITIALIZATION_IN_PROGRESS"}
+
+            if existing == "INITIALIZING_LEASE_ACTIVE":
+                # Outra invocação está inicializando. Aguardar brevemente.
+                result = self._wait_for_activation(ctx.contact_id)
+                duration_ms = int(_time.time() * 1000) - start_ms
+                logger.info(
+                    "Initializer wait_result contact_id=%s result=%s duration_ms=%d",
+                    ctx.contact_id, result, duration_ms,
+                )
+                if result == "ACTIVE_COMPLETE":
+                    return {"status": "SUCCESS", "botInitialized": "true"}
+                # Não ativou a tempo — retornar erro rastreável
+                return {
+                    "status": "ERROR",
+                    "botInitialized": "false",
+                    "errorCode": "INITIALIZATION_IN_PROGRESS_TIMEOUT",
+                }
 
             # existing == "NOT_FOUND" ou "INITIALIZING_LEASE_EXPIRED"
             # Reservar ou reassumir
             client_tokens = self._reserve_session(ctx)
+
+            logger.info(
+                "Initializer reserved contact_id=%s",
+                ctx.contact_id,
+            )
 
             # Executar APIs do Connect
             streaming_id = self._start_streaming(ctx, client_tokens["streaming"])
@@ -174,15 +207,49 @@ class InitializerService:
                 streaming_id=streaming_id,
             )
 
-            logger.info("Initialization complete", extra={"contact_id": ctx.contact_id})
+            duration_ms = int(_time.time() * 1000) - start_ms
+            logger.info(
+                "Initializer complete contact_id=%s duration_ms=%d",
+                ctx.contact_id, duration_ms,
+            )
             return {"status": "SUCCESS", "botInitialized": "true"}
 
         except Exception as e:
+            duration_ms = int(_time.time() * 1000) - start_ms
             logger.error(
-                "Initialization failed",
-                extra={"contact_id": ctx.contact_id, "error": str(e)},
+                "Initializer failed contact_id=%s error_type=%s error=%s duration_ms=%d",
+                ctx.contact_id, type(e).__name__, str(e), duration_ms,
             )
             return {"status": "ERROR", "botInitialized": "false", "errorCode": "INITIALIZATION_FAILED"}
+
+    def _wait_for_activation(self, contact_id: str, max_wait_seconds: float = 3.0, interval: float = 0.3) -> str:
+        """
+        Aguarda a sessão mudar de INITIALIZING para ACTIVE.
+
+        Verifica a cada `interval` segundos, por no máximo `max_wait_seconds`.
+        Retorna o estado final encontrado.
+        """
+        import time as _time
+
+        deadline = _time.time() + max_wait_seconds
+        attempts = 0
+
+        while _time.time() < deadline:
+            _time.sleep(interval)
+            attempts += 1
+            state = self._check_existing_session(contact_id)
+            if state != "INITIALIZING_LEASE_ACTIVE":
+                logger.info(
+                    "Initializer wait_resolved contact_id=%s state=%s attempts=%d",
+                    contact_id, state, attempts,
+                )
+                return state
+
+        logger.warning(
+            "Initializer wait_timeout contact_id=%s attempts=%d max_wait=%.1f",
+            contact_id, attempts, max_wait_seconds,
+        )
+        return "INITIALIZING_LEASE_ACTIVE"
 
     def _check_existing_session(self, contact_id: str) -> str:
         """

@@ -53,17 +53,25 @@ def handler(event: dict[str, Any], context: Any) -> dict[str, str]:
     Handler Lambda — inicializa bot CUSTOM_BOT.
 
     Extrai contexto do evento, delega para InitializerService.
-    Retorna dict que o Contact Flow interpreta via Check Contact Attributes.
+    Retorna dict STRING_MAP compatível com Amazon Connect Contact Flow.
+    Todos os valores DEVEM ser strings.
     """
+    logger.info(
+        "Initializer invoked",
+        extra={"event_keys": sorted(event.keys()) if isinstance(event, dict) else "not_dict"},
+    )
+
     try:
         ctx = extract_context(event)
     except ValueError as e:
         logger.error("Invalid event", extra={"error": str(e)})
-        return {
+        response = {
             "status": "ERROR",
             "botInitialized": "false",
             "errorCode": "INVALID_EVENT",
         }
+        _log_response(response)
+        return response
 
     connect, participant, kms, dynamodb = _get_clients()
 
@@ -78,4 +86,33 @@ def handler(event: dict[str, Any], context: Any) -> dict[str, str]:
         lease_seconds=get_initialization_lease_seconds(),
     )
 
-    return service.initialize(ctx)
+    try:
+        response = service.initialize(ctx)
+    except Exception as e:
+        # Captura qualquer exceção não tratada pelo service.initialize()
+        # Garante que o Contact Flow sempre recebe STRING_MAP válido
+        logger.error(
+            "Unhandled exception in InitializerService",
+            extra={"contact_id": ctx.contact_id, "error_type": type(e).__name__, "error": str(e)},
+        )
+        response = {
+            "status": "ERROR",
+            "botInitialized": "false",
+            "errorCode": "UNHANDLED_EXCEPTION",
+        }
+
+    _log_response(response)
+    return response
+
+
+def _log_response(response: dict[str, str]) -> None:
+    """Log seguro da resposta retornada ao Contact Flow (sem tokens)."""
+    logger.info(
+        "Initializer response",
+        extra={
+            "response_type": type(response).__name__,
+            "response_keys": sorted(response.keys()) if isinstance(response, dict) else None,
+            "value_types": {k: type(v).__name__ for k, v in response.items()} if isinstance(response, dict) else None,
+            "status": response.get("status") if isinstance(response, dict) else None,
+        },
+    )

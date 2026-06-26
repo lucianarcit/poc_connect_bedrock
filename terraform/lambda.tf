@@ -43,7 +43,7 @@ resource "aws_lambda_function" "integrator" {
       SESSIONS_TABLE_NAME    = aws_dynamodb_table.sessions.name
       IDEMPOTENCY_TABLE_NAME = aws_dynamodb_table.idempotency.name
       KMS_KEY_ID             = aws_kms_key.tokens.key_id
-      MCP_SERVER_URL         = aws_lambda_function_url.mcp_server.function_url
+      MCP_SERVER_URL         = "${aws_lambda_function_url.mcp_server.function_url}mcp"
       LEASE_DURATION_SECONDS = tostring(var.lease_duration_seconds)
       MCP_TIMEOUT_SECONDS    = "10"
       MCP_MAX_RETRIES        = "2"

@@ -19,7 +19,10 @@ from shared.mcp_client.models import ToolResult
 
 @pytest.fixture
 def client() -> MCPClient:
-    return MCPClient(server_url="http://fake-mcp:8000/mcp", timeout_seconds=2.0, max_retries=1)
+    c = MCPClient(server_url="http://fake-mcp:8000/mcp", timeout_seconds=2.0, max_retries=1)
+    # Skip MCP initialization handshake in unit tests (tested separately in test_mcp_http_transport)
+    c._initialized = True
+    return c
 
 
 def _mock_httpx(mock_response=None, side_effect=None):
@@ -29,6 +32,9 @@ def _mock_httpx(mock_response=None, side_effect=None):
     if side_effect:
         mock_ctx.post.side_effect = side_effect
     else:
+        # Ensure response has content-type header for _parse_response
+        if mock_response and not mock_response.headers.get("content-type"):
+            mock_response.headers["content-type"] = "application/json"
         mock_ctx.post.return_value = mock_response
     mock_client_cls.return_value.__enter__ = MagicMock(return_value=mock_ctx)
     mock_client_cls.return_value.__exit__ = MagicMock(return_value=False)
@@ -80,8 +86,11 @@ class TestMCPClientCallTool:
 
     def test_server_500(self, client: MCPClient):
         """HTTP 500 deve retornar ToolResult com sucesso=False (erro encapsulado)."""
-        # MCPServerError é subclass de MCPClientError, capturada no call_tool
-        mock_response = httpx.Response(status_code=500, text="Internal Server Error")
+        mock_response = httpx.Response(
+            status_code=500,
+            headers={"content-type": "text/plain"},
+            text="Internal Server Error",
+        )
         with patch("httpx.Client", _mock_httpx(mock_response)):
             result = client.call_tool("health_check", {})
 

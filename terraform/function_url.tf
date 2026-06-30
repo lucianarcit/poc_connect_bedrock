@@ -1,13 +1,8 @@
-# --- Lambda Function URL: MCP Server ---
+# --- Function URL ---
 #
-# A Function URL é o endpoint HTTPS que o Integrator chama via SigV4.
-# auth_type = AWS_IAM garante que apenas principals com permissão lambda:InvokeFunctionUrl
-# e credenciais SigV4 válidas podem acessar.
+# REMOVIDO na POC Bedrock.
+# A POC Bedrock não utiliza MCP Server nem Lambda Function URL.
+# O Integrator chama diretamente a Bedrock Converse API via boto3.
 #
-# Nenhuma permission resource-based é criada (não há invoke público).
-# O acesso é controlado exclusivamente pela IAM policy do Integrator (iam.tf).
-
-resource "aws_lambda_function_url" "mcp_server" {
-  function_name      = aws_lambda_function.mcp_server.function_name
-  authorization_type = "AWS_IAM"
-}
+# Este arquivo está vazio intencionalmente.
+# Mantido para documentar que o recurso não é provisionado nesta POC.

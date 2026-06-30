@@ -24,7 +24,7 @@ resource "aws_lambda_function" "initializer" {
   depends_on = [aws_cloudwatch_log_group.initializer]
 }
 
-# --- Lambda: Integrator ---
+# --- Lambda: Integrator (Bedrock Converse) ---
 
 resource "aws_lambda_function" "integrator" {
   function_name = local.integrator_name
@@ -40,38 +40,17 @@ resource "aws_lambda_function" "integrator" {
 
   environment {
     variables = {
-      SESSIONS_TABLE_NAME    = aws_dynamodb_table.sessions.name
-      IDEMPOTENCY_TABLE_NAME = aws_dynamodb_table.idempotency.name
-      KMS_KEY_ID             = aws_kms_key.tokens.key_id
-      MCP_SERVER_URL         = "${aws_lambda_function_url.mcp_server.function_url}mcp/"
-      LEASE_DURATION_SECONDS = tostring(var.lease_duration_seconds)
-      MCP_TIMEOUT_SECONDS    = "10"
-      MCP_MAX_RETRIES        = "2"
+      SESSIONS_TABLE_NAME     = aws_dynamodb_table.sessions.name
+      IDEMPOTENCY_TABLE_NAME  = aws_dynamodb_table.idempotency.name
+      KMS_KEY_ID              = aws_kms_key.tokens.key_id
+      LEASE_DURATION_SECONDS  = tostring(var.lease_duration_seconds)
+      BEDROCK_MODEL_ID        = var.bedrock_model_id
+      BEDROCK_MAX_TOKENS      = tostring(var.bedrock_max_tokens)
+      BEDROCK_TEMPERATURE     = tostring(var.bedrock_temperature)
+      BEDROCK_SYSTEM_PROMPT   = var.bedrock_system_prompt
+      BEDROCK_TIMEOUT_SECONDS = tostring(var.bedrock_timeout_seconds)
     }
   }
 
   depends_on = [aws_cloudwatch_log_group.integrator]
-}
-
-# --- Lambda: MCP Server ---
-
-resource "aws_lambda_function" "mcp_server" {
-  function_name = local.mcp_server_name
-  role          = aws_iam_role.mcp_server.arn
-  handler       = "mcp_server.handler.handler"
-  runtime       = local.lambda_runtime
-  timeout       = var.mcp_server_timeout # 30s
-  memory_size   = var.lambda_memory_mb
-  architectures = ["x86_64"]
-
-  filename         = "${path.module}/../packages/mcp_server.zip"
-  source_code_hash = filebase64sha256("${path.module}/../packages/mcp_server.zip")
-
-  environment {
-    variables = {
-      SAMPLE_DOCUMENTS_DIR = "/var/task/sample_documents"
-    }
-  }
-
-  depends_on = [aws_cloudwatch_log_group.mcp_server]
 }

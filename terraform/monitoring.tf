@@ -1,4 +1,4 @@
-# --- CloudWatch Log Groups ---
+# --- CloudWatch Log Groups (POC Bedrock) ---
 
 resource "aws_cloudwatch_log_group" "initializer" {
   name              = "/aws/lambda/${local.initializer_name}"
@@ -10,15 +10,7 @@ resource "aws_cloudwatch_log_group" "integrator" {
   retention_in_days = var.log_retention_days
 }
 
-resource "aws_cloudwatch_log_group" "mcp_server" {
-  name              = "/aws/lambda/${local.mcp_server_name}"
-  retention_in_days = var.log_retention_days
-}
-
 # --- Metric Filter: FailedFinal ---
-#
-# Captura logs JSON do Integrator onde metric = "FailedFinal".
-# O logging_config do Integrator emite: {"metric": "FailedFinal", ...}
 
 resource "aws_cloudwatch_log_metric_filter" "failed_final" {
   name           = "${local.name}-failed-final"
@@ -53,7 +45,7 @@ locals {
   alarm_actions = var.alarm_email != "" ? [aws_sns_topic.alarms[0].arn] : []
 }
 
-# Alarme: FailedFinal (mensagens com falha permanente)
+# Alarme: FailedFinal
 resource "aws_cloudwatch_metric_alarm" "failed_final" {
   alarm_name          = "${local.name}-failed-final"
   alarm_description   = "Mensagens marcadas FAILED_FINAL no Integrator"
@@ -70,7 +62,7 @@ resource "aws_cloudwatch_metric_alarm" "failed_final" {
   ok_actions    = local.alarm_actions
 }
 
-# Alarme: Mensagens na DLQ
+# Alarme: DLQ não vazia
 resource "aws_cloudwatch_metric_alarm" "dlq_messages" {
   alarm_name          = "${local.name}-dlq-not-empty"
   alarm_description   = "Mensagens presentes na DLQ (falhas após ${var.sqs_max_receive_count} tentativas)"
@@ -151,17 +143,17 @@ resource "aws_cloudwatch_metric_alarm" "integrator_throttles" {
   alarm_actions = local.alarm_actions
 }
 
-# Alarme: Idade da mensagem mais antiga na SQS (latência do processamento)
+# Alarme: Idade da mensagem mais antiga na SQS
 resource "aws_cloudwatch_metric_alarm" "sqs_oldest_message" {
   alarm_name          = "${local.name}-sqs-oldest-message"
-  alarm_description   = "Mensagem mais antiga na SQS > 5 minutos (possível atraso no processamento)"
+  alarm_description   = "Mensagem mais antiga na SQS > 5 minutos"
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = 1
   metric_name         = "ApproximateAgeOfOldestMessage"
   namespace           = "AWS/SQS"
   period              = 300
   statistic           = "Maximum"
-  threshold           = 300 # 5 minutos em segundos
+  threshold           = 300
   treat_missing_data  = "notBreaching"
 
   dimensions = {

@@ -1,9 +1,14 @@
+# --- Locals: POC Bedrock Converse ---
+#
+# Prefixo: connect-bedrock-poc (independente da POC MCP)
+# Este Terraform NÃO compartilha state, backend ou recursos com a POC MCP.
+
 locals {
-  prefix = "connect-mcp-poc"
+  prefix = "connect-bedrock-poc"
   name   = "${local.prefix}-${var.environment_name}"
 
   common_tags = merge(var.tags, {
-    Project     = "amazon-connect-mcp-poc"
+    Project     = "amazon-connect-bedrock-poc"
     Environment = var.environment_name
     ManagedBy   = "terraform"
   })
@@ -19,12 +24,10 @@ locals {
   # Lambdas
   initializer_name = "${local.name}-initializer"
   integrator_name  = "${local.name}-integrator"
-  mcp_server_name  = "${local.name}-mcp-server"
 
   # IAM Roles — sufixo -PPD obrigatório por governança da conta
   initializer_role_name = "${local.name}-initializer-ExecutionRole-PPD"
   integrator_role_name  = "${local.name}-integrator-ExecutionRole-PPD"
-  mcp_server_role_name  = "${local.name}-mcp-server-ExecutionRole-PPD"
 
   # Permissions Boundary obrigatória
   permissions_boundary_arn = "arn:aws:iam::253223147282:policy/ContributorBoundaryPolicy-ITSM-145407"
@@ -35,6 +38,6 @@ locals {
   sqs_retention_seconds   = var.sqs_retention_days * 86400
   dlq_retention_seconds   = var.dlq_retention_days * 86400
 
-  # Lambda runtime — Python 3.12 (última versão estável disponível na AWS Lambda)
+  # Lambda runtime — Python 3.12
   lambda_runtime = "python3.12"
 }

@@ -1,3 +1,5 @@
+# --- Outputs: POC Bedrock Converse ---
+
 output "sns_topic_arn" {
   description = "ARN do SNS Topic para configurar no StartContactStreaming."
   value       = aws_sns_topic.streaming.arn
@@ -38,14 +40,9 @@ output "integrator_lambda_arn" {
   value       = aws_lambda_function.integrator.arn
 }
 
-output "mcp_server_lambda_arn" {
-  description = "ARN da Lambda MCP Server."
-  value       = aws_lambda_function.mcp_server.arn
-}
-
-output "mcp_server_function_url" {
-  description = "URL da Function URL do MCP Server (HTTPS, protegida por AWS_IAM)."
-  value       = aws_lambda_function_url.mcp_server.function_url
+output "bedrock_model_id" {
+  description = "ID do modelo Bedrock configurado."
+  value       = var.bedrock_model_id
 }
 
 output "connect_instance_id" {

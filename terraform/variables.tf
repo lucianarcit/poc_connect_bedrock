@@ -1,3 +1,5 @@
+# --- Variáveis de configuração: POC Bedrock Converse ---
+
 variable "aws_region" {
   description = "Região AWS para provisionamento."
   type        = string
@@ -21,13 +23,13 @@ variable "connect_instance_arn" {
 }
 
 variable "connect_contact_flow_id" {
-  description = "ID do Contact Flow (opcional; usado em outputs e documentação)."
+  description = "ID do Contact Flow da POC Bedrock (separado do flow MCP)."
   type        = string
   default     = ""
 }
 
 variable "alarm_email" {
-  description = "E-mail para receber alarmes via SNS (opcional; se vazio, alarmes não criam subscription)."
+  description = "E-mail para receber alarmes via SNS (opcional)."
   type        = string
   default     = ""
 }
@@ -56,12 +58,6 @@ variable "initializer_timeout" {
   description = "Timeout da Lambda Initializer em segundos."
   type        = number
   default     = 8
-}
-
-variable "mcp_server_timeout" {
-  description = "Timeout da Lambda MCP Server em segundos."
-  type        = number
-  default     = 30
 }
 
 variable "sqs_visibility_timeout" {
@@ -116,4 +112,67 @@ variable "lambda_memory_mb" {
   description = "Memória alocada para as Lambdas (MB)."
   type        = number
   default     = 256
+}
+
+# --- Configurações do Amazon Bedrock ---
+
+variable "bedrock_model_id" {
+  description = "ID do modelo Bedrock para a Converse API. OBRIGATÓRIO — validar via smoke test antes do deploy."
+  type        = string
+  # Sem default — forçar operador a definir explicitamente após validação
+
+  validation {
+    condition     = length(var.bedrock_model_id) > 0
+    error_message = "bedrock_model_id não pode ser vazio. Execute o smoke test para validar o modelo e forneça o ID explicitamente."
+  }
+}
+
+variable "bedrock_model_arn" {
+  description = "ARN do modelo ou inference profile para IAM policy. OBRIGATORIO — validar com aws bedrock get-foundation-model antes do deploy."
+  type        = string
+  # Sem default — forcar operador a definir explicitamente apos validacao real
+
+  validation {
+    condition     = length(var.bedrock_model_arn) > 0
+    error_message = "bedrock_model_arn nao pode ser vazio. Valide o ARN com 'aws bedrock get-foundation-model' e forneca explicitamente."
+  }
+}
+
+variable "bedrock_max_tokens" {
+  description = "Número máximo de tokens na resposta da Converse API."
+  type        = number
+  default     = 1024
+
+  validation {
+    condition     = var.bedrock_max_tokens >= 1 && var.bedrock_max_tokens <= 4096
+    error_message = "bedrock_max_tokens deve estar entre 1 e 4096."
+  }
+}
+
+variable "bedrock_temperature" {
+  description = "Temperature da geração (0.0 a 1.0)."
+  type        = number
+  default     = 0.7
+
+  validation {
+    condition     = var.bedrock_temperature >= 0.0 && var.bedrock_temperature <= 1.0
+    error_message = "bedrock_temperature deve estar entre 0.0 e 1.0."
+  }
+}
+
+variable "bedrock_system_prompt" {
+  description = "System prompt para o modelo. Vazio = usar prompt padrão em pt-BR do BedrockClient."
+  type        = string
+  default     = ""
+}
+
+variable "bedrock_timeout_seconds" {
+  description = "Timeout da chamada ao Bedrock em segundos. Deve ser <= (integrator_timeout - 5)."
+  type        = number
+  default     = 20
+
+  validation {
+    condition     = var.bedrock_timeout_seconds >= 5
+    error_message = "bedrock_timeout_seconds deve ser >= 5."
+  }
 }

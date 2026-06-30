@@ -54,6 +54,7 @@ class MCPClient(MCPClientProtocol):
         max_retries: int = 2,
         headers: dict[str, str] | None = None,
         sigv4_auth: SigV4Signer | None = None,
+        correlation_id: str | None = None,
     ) -> None:
         self._server_url = server_url
         self._timeout = timeout_seconds
@@ -63,10 +64,12 @@ class MCPClient(MCPClientProtocol):
             "Accept": "application/json, text/event-stream",
             **(headers or {}),
         }
+        if correlation_id:
+            self._base_headers["X-Correlation-Id"] = correlation_id
         self._sigv4 = sigv4_auth or NoOpSigV4Auth()
         self._session_id: str | None = None
         self._initialized = False
-        logger.info("MCPClient created server_url=%r", self._server_url)
+        logger.info("MCPClient created server_url=%r correlation_id=%s", self._server_url, correlation_id or "none")
 
     def _post(self, payload: dict, is_notification: bool = False) -> httpx.Response:
         """

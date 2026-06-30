@@ -103,6 +103,7 @@ class MessageProcessor:
                 timeout_seconds=mcp_timeout,
                 max_retries=mcp_retries,
                 sigv4_auth=sigv4_auth,
+                correlation_id=os.environ.get("AWS_LAMBDA_LOG_STREAM_NAME", ""),
             ),
             tool_selector=ToolSelector(),
         )

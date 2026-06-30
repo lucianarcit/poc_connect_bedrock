@@ -56,8 +56,12 @@ def create_mcp_server(environment: str = "production") -> FastMCP:
             ],
         )
     else:
-        # Produção: proteção padrão do SDK (localhost only)
-        transport_security = None
+        # Produção (Lambda Function URL): desabilitar DNS rebinding protection.
+        # A Function URL é protegida por AWS_IAM/SigV4 — apenas callers autorizados
+        # conseguem invocar. DNS rebinding não se aplica (não há browser acessando).
+        transport_security = TransportSecuritySettings(
+            enable_dns_rebinding_protection=False,
+        )
 
     server = FastMCP(
         name="support-mcp-server",
@@ -126,7 +130,9 @@ def _register_tools(server: FastMCP) -> None:
         return _health(document_store=_document_store)
 
 
-# Instância padrão (produção) usada pelo handler Lambda e pelo local server
+# Instância padrão usada APENAS por local_chat e testes ASGI diretos.
+# O handler Lambda NÃO usa esta instância — cria uma nova a cada invocação
+# via create_mcp_server() para evitar reutilização do StreamableHTTPSessionManager.
 mcp_server = create_mcp_server(environment="production")
 
 

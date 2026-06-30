@@ -3,10 +3,14 @@ Processador de mensagem individual do chat.
 
 Responsabilidades:
 - Buscar sessão
-- Selecionar e chamar tool MCP
+- Chamar BedrockClient com mensagem do usuário
 - Enviar resposta ao chat
 - Renovar token se expirado (uma vez)
 - Classificar erros e marcar idempotência
+- Propagar correlation_id em todos os logs
+
+Segurança de logging:
+- NUNCA registrar conteúdo da mensagem ou resposta em NENHUM nível
 """
 
 from __future__ import annotations
@@ -18,17 +22,18 @@ from typing import Any
 from integrator.exceptions import (
     DynamoDBTransientError,
     ErrorCategory,
-    IdempotencyStatus,
 )
 from integrator.idempotency_repository import IdempotencyRepository
 from integrator.models import ConnectChatMessage
 from integrator.participant_service import ParticipantService, SendMessageResult
 from integrator.session_repository import SessionData, SessionRepository
+from shared.bedrock_client import (
+    BedrockClient,
+    BedrockFatalError,
+    BedrockTimeoutError,
+    BedrockTransientError,
+)
 from shared.crypto import CryptoService, FakeCryptoService, KMSCryptoService
-from shared.mcp_client.client import MCPClient
-from shared.mcp_client.exceptions import MCPClientError
-from shared.mcp_client.models import ToolResult
-from shared.mcp_client.tool_selector import ToolSelector
 
 logger = logging.getLogger(__name__)
 
@@ -38,30 +43,20 @@ GENERIC_ERROR_MESSAGE = (
 )
 
 
-def _is_transient_mcp_error(result: ToolResult) -> bool:
-    """Verifica se o erro do MCP é transitório."""
-    if result.error is None:
-        return False
-    transient_indicators = ["timeout", "Timeout", "conectar", "Falha ao conectar", "500", "502", "503", "5xx"]
-    return any(ind in result.error for ind in transient_indicators)
-
-
 class MessageProcessor:
-    """Processa uma mensagem de chat individual."""
+    """Processa uma mensagem de chat individual usando BedrockClient."""
 
     def __init__(
         self,
         session_repo: SessionRepository,
         participant_service: ParticipantService,
         crypto: CryptoService,
-        mcp_client: MCPClient,
-        tool_selector: ToolSelector,
+        bedrock_client: BedrockClient,
     ) -> None:
         self._sessions = session_repo
         self._participant = participant_service
         self._crypto = crypto
-        self._mcp = mcp_client
-        self._selector = tool_selector
+        self._bedrock = bedrock_client
 
     @classmethod
     def from_environment(cls, dynamodb_client: Any, cp_client: Any) -> "MessageProcessor":
@@ -70,11 +65,6 @@ class MessageProcessor:
 
         region = os.environ.get("AWS_REGION", "us-east-1")
         kms_key_id = os.environ.get("KMS_KEY_ID", "")
-        mcp_url = os.environ.get("MCP_SERVER_URL", "http://localhost:8000/mcp")
-        mcp_timeout = float(os.environ.get("MCP_TIMEOUT_SECONDS", "10"))
-        mcp_retries = int(os.environ.get("MCP_MAX_RETRIES", "2"))
-
-        logger.info("Processor MCP_SERVER_URL env=%r", mcp_url)
 
         if kms_key_id:
             kms_client = boto3.client("kms", region_name=region)
@@ -82,108 +72,104 @@ class MessageProcessor:
         else:
             crypto = FakeCryptoService()
 
-        # SigV4 auth para Function URL (quando URL é .lambda-url.*.on.aws)
-        from shared.sigv4 import AWSSigV4Auth, NoOpSigV4Auth, SigV4Signer
-
-        sigv4_auth: SigV4Signer
-        if ".lambda-url." in mcp_url and ".on.aws" in mcp_url:
-            sigv4_auth = AWSSigV4Auth(region=region, service="lambda")
-        else:
-            sigv4_auth = NoOpSigV4Auth()
+        # BedrockClient lê suas variáveis de ambiente internamente
+        bedrock_client = BedrockClient()
 
         return cls(
             session_repo=SessionRepository(
                 dynamodb_client=dynamodb_client,
-                table_name=os.environ.get("SESSIONS_TABLE_NAME", "connect-mcp-poc-sessions"),
+                table_name=os.environ.get("SESSIONS_TABLE_NAME", "connect-bedrock-poc-sessions"),
             ),
             participant_service=ParticipantService(connectparticipant_client=cp_client),
             crypto=crypto,
-            mcp_client=MCPClient(
-                server_url=mcp_url,
-                timeout_seconds=mcp_timeout,
-                max_retries=mcp_retries,
-                sigv4_auth=sigv4_auth,
-                correlation_id=os.environ.get("AWS_LAMBDA_LOG_STREAM_NAME", ""),
-            ),
-            tool_selector=ToolSelector(),
+            bedrock_client=bedrock_client,
         )
 
-    def process(self, msg: ConnectChatMessage, idempotency_repo: IdempotencyRepository) -> bool:
+    def process(
+        self,
+        msg: ConnectChatMessage,
+        idempotency_repo: IdempotencyRepository,
+        correlation_id: str | None = None,
+        remaining_time_ms: int | None = None,
+    ) -> bool:
         """
         Processa uma mensagem.
+
+        Args:
+            msg: Mensagem parseada do Amazon Connect.
+            idempotency_repo: Repositório de idempotência.
+            correlation_id: ID de correlação para rastreamento.
+            remaining_time_ms: Tempo restante da Lambda em ms.
 
         Returns:
             True se o item SQS deve ser marcado como falha (retry).
             False se processado com sucesso (ou FAILED_FINAL sem retry).
         """
+        log_extra: dict[str, Any] = {
+            "contact_id": msg.contact_id,
+            "message_id": msg.message_id,
+        }
+        if correlation_id:
+            log_extra["correlation_id"] = correlation_id
+
         # 1. Buscar sessão
         try:
             session = self._sessions.get_session(msg.contact_id)
         except DynamoDBTransientError:
+            logger.warning("Session lookup transient error", extra=log_extra)
             return True  # fail item → retry
 
         if session is None:
-            logger.error("Session not found", extra={"contact_id": msg.contact_id})
-            self._emit_failed_final(msg, reason="session_not_found")
+            logger.error("Session not found", extra=log_extra)
+            self._emit_failed_final(msg, reason="session_not_found", correlation_id=correlation_id)
             idempotency_repo.mark_failed_final(msg.message_id)
             return False
 
-        # 2. Chamar MCP
-        tool_name = self._selector.select_tool(msg.content)
-        arguments = self._selector.build_arguments(tool_name, msg.content)
-
+        # 2. Chamar BedrockClient
         logger.info(
-            "Calling MCP Server",
+            "Calling Bedrock Converse API",
             extra={
-                "contact_id": msg.contact_id,
-                "message_id": msg.message_id,
-                "tool_name": tool_name,
-                "mcp_url": self._mcp._server_url,
+                **log_extra,
+                "model_id": self._bedrock.model_id,
+                "content_length": len(msg.content),
             },
         )
 
         try:
-            mcp_result = self._mcp.call_tool(tool_name, arguments)
-        except MCPClientError as e:
+            response_text = self._bedrock.converse(
+                user_message=msg.content,
+                correlation_id=correlation_id,
+                remaining_time_ms=remaining_time_ms,
+            )
+        except (BedrockTransientError, BedrockTimeoutError):
+            # Transitório → fail item para retry via SQS
             logger.warning(
-                "MCP call exception (transient)",
-                extra={"contact_id": msg.contact_id, "error": str(e)},
+                "Bedrock transient error — failing item for retry",
+                extra=log_extra,
             )
-            return True  # fail item → retry
-
-        logger.info(
-            "MCP call completed",
-            extra={
-                "contact_id": msg.contact_id,
-                "tool_name": tool_name,
-                "success": mcp_result.success,
-                "latency_ms": round(mcp_result.latency_ms, 1),
-                "error": mcp_result.error if not mcp_result.success else None,
-            },
-        )
-
-        if not mcp_result.success:
-            if _is_transient_mcp_error(mcp_result):
-                return True  # fail item → retry
-            # Erro FATAL do MCP
+            return True
+        except BedrockFatalError:
+            # Fatal → enviar mensagem genérica ao usuário e marcar FAILED_FINAL
+            logger.warning(
+                "Bedrock fatal error — sending error message to user",
+                extra=log_extra,
+            )
             return self._handle_fatal_with_response(
-                msg, session, idempotency_repo, GENERIC_ERROR_MESSAGE
+                msg, session, idempotency_repo, GENERIC_ERROR_MESSAGE, correlation_id=correlation_id,
             )
 
-        # 3. Formatar resposta
-        response_text = self._format_mcp_response(tool_name, mcp_result)
-
+        # 3. Enviar resposta ao chat
         logger.info(
             "Sending response to chat",
             extra={
-                "contact_id": msg.contact_id,
-                "message_id": msg.message_id,
+                **log_extra,
                 "response_length": len(response_text),
             },
         )
 
-        # 4. Enviar resposta ao chat
-        return self._send_response(msg, session, idempotency_repo, response_text)
+        return self._send_response(
+            msg, session, idempotency_repo, response_text, correlation_id=correlation_id,
+        )
 
     def _send_response(
         self,
@@ -191,6 +177,7 @@ class MessageProcessor:
         session: SessionData,
         idempotency_repo: IdempotencyRepository,
         content: str,
+        correlation_id: str | None = None,
     ) -> bool:
         """
         Envia resposta ao chat. Renova token se expirado (uma vez).
@@ -213,12 +200,14 @@ class MessageProcessor:
 
         # Token expirado? Renovar uma vez
         if send_result.error and "TOKEN_EXPIRED" in send_result.error:
-            renewed = self._try_renew_and_retry(msg, session, idempotency_repo, content)
+            renewed = self._try_renew_and_retry(
+                msg, session, idempotency_repo, content, correlation_id=correlation_id,
+            )
             return renewed
 
         # Erro fatal na entrega
         if send_result.error_category == ErrorCategory.FATAL:
-            self._emit_failed_final(msg, reason="send_message_fatal")
+            self._emit_failed_final(msg, reason="send_message_fatal", correlation_id=correlation_id)
             idempotency_repo.mark_failed_final(msg.message_id)
             return False
 
@@ -231,6 +220,7 @@ class MessageProcessor:
         session: SessionData,
         idempotency_repo: IdempotencyRepository,
         content: str,
+        correlation_id: str | None = None,
     ) -> bool:
         """
         Renova ConnectionToken e retenta SendMessage uma vez.
@@ -238,11 +228,18 @@ class MessageProcessor:
         Returns:
             True = fail item, False = sucesso ou failed_final.
         """
+        log_extra: dict[str, Any] = {
+            "contact_id": msg.contact_id,
+            "message_id": msg.message_id,
+        }
+        if correlation_id:
+            log_extra["correlation_id"] = correlation_id
+
         # Descriptografar ParticipantToken
         try:
             participant_token = self._crypto.decrypt(session.participant_token_encrypted)
         except Exception:
-            self._emit_failed_final(msg, reason="decrypt_participant_token_failed")
+            self._emit_failed_final(msg, reason="decrypt_participant_token_failed", correlation_id=correlation_id)
             idempotency_repo.mark_failed_final(msg.message_id)
             return False
 
@@ -251,7 +248,7 @@ class MessageProcessor:
 
         if not renew_result.success:
             if renew_result.error_category == ErrorCategory.FATAL:
-                self._emit_failed_final(msg, reason="renew_connection_fatal")
+                self._emit_failed_final(msg, reason="renew_connection_fatal", correlation_id=correlation_id)
                 idempotency_repo.mark_failed_final(msg.message_id)
                 return False
             # Transitório — fail item
@@ -284,7 +281,7 @@ class MessageProcessor:
         if retry_result.error_category == ErrorCategory.TRANSIENT:
             return True
 
-        self._emit_failed_final(msg, reason="send_after_renew_fatal")
+        self._emit_failed_final(msg, reason="send_after_renew_fatal", correlation_id=correlation_id)
         idempotency_repo.mark_failed_final(msg.message_id)
         return False
 
@@ -294,6 +291,7 @@ class MessageProcessor:
         session: SessionData,
         idempotency_repo: IdempotencyRepository,
         content: str,
+        correlation_id: str | None = None,
     ) -> bool:
         """
         Tenta enviar resposta genérica para erro FATAL.
@@ -310,7 +308,7 @@ class MessageProcessor:
         )
 
         if send_result.success:
-            self._emit_failed_final(msg, reason="mcp_fatal_generic_response_sent")
+            self._emit_failed_final(msg, reason="bedrock_fatal_generic_response_sent", correlation_id=correlation_id)
             idempotency_repo.mark_failed_final(msg.message_id)
             return False  # não retry
 
@@ -319,41 +317,23 @@ class MessageProcessor:
             return True
 
         # Fatal no envio também — desistir
-        self._emit_failed_final(msg, reason="mcp_fatal_generic_response_also_fatal")
+        self._emit_failed_final(msg, reason="bedrock_fatal_generic_response_also_fatal", correlation_id=correlation_id)
         idempotency_repo.mark_failed_final(msg.message_id)
         return False
 
-    def _emit_failed_final(self, msg: ConnectChatMessage, reason: str) -> None:
+    def _emit_failed_final(
+        self,
+        msg: ConnectChatMessage,
+        reason: str,
+        correlation_id: str | None = None,
+    ) -> None:
         """Registra métrica e log estruturado para FAILED_FINAL."""
-        logger.warning(
-            "Message marked FAILED_FINAL",
-            extra={
-                "metric": "FailedFinal",
-                "contact_id": msg.contact_id,
-                "message_id": msg.message_id,
-                "reason": reason,
-            },
-        )
-
-    @staticmethod
-    def _format_mcp_response(tool_name: str, result: ToolResult) -> str:
-        """Formata resposta MCP para texto do chat."""
-        data = result.data
-
-        if tool_name == "health_check":
-            return f"Status: {data.get('status', '?')} | Documentos: {data.get('documents_loaded', 0)}"
-
-        if tool_name == "get_support_procedure":
-            title = data.get("title") or "Procedimento"
-            steps = data.get("steps", [])
-            lines = [title, ""]
-            for i, step in enumerate(steps, 1):
-                lines.append(f"{i}. {step}")
-            return "\n".join(lines)
-
-        # search_support_documentation
-        answer = data.get("answer", "Não encontrei informações sobre sua pergunta.")
-        doc_title = data.get("document_title")
-        if doc_title:
-            return f"{doc_title}\n\n{answer}"
-        return answer
+        extra: dict[str, Any] = {
+            "metric": "FailedFinal",
+            "contact_id": msg.contact_id,
+            "message_id": msg.message_id,
+            "reason": reason,
+        }
+        if correlation_id:
+            extra["correlation_id"] = correlation_id
+        logger.warning("Message marked FAILED_FINAL", extra=extra)

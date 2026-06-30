@@ -12,8 +12,8 @@ Este plano implementa a substituição da camada MCP pela integração direta co
 
 ### Fase 0 — Segurança e Inventário
 
-- [ ] 0. Confirmar isolamento antes de qualquer implementação
-  - [ ] 0.1 Confirmar branch e repositório
+- [x] 0. Confirmar isolamento antes de qualquer implementação
+  - [x] 0.1 Confirmar branch e repositório
     - **Objetivo:** Verificar que estamos no repositório correto e na branch dedicada à POC Bedrock
     - **Arquivos:** N/A (verificação git)
     - **Dependências:** Nenhuma
@@ -25,7 +25,7 @@ Este plano implementa a substituição da camada MCP pela integração direta co
     - **Critério de conclusão:** Branch e repositório confirmados documentalmente
     - **Requisitos:** 15.4
 
-  - [ ] 0.2 Confirmar ausência de terraform.tfstate da POC MCP
+  - [x] 0.2 Confirmar ausência de terraform.tfstate da POC MCP
     - **Objetivo:** Garantir que nenhum estado Terraform da POC MCP foi copiado para este projeto
     - **Arquivos:** `terraform/` (verificação)
     - **Dependências:** 0.1
@@ -37,7 +37,7 @@ Este plano implementa a substituição da camada MCP pela integração direta co
     - **Critério de conclusão:** Ausência de estado MCP confirmada
     - **Requisitos:** 9.11, 15.1
 
-  - [ ] 0.3 Confirmar ausência de backend remoto compartilhado
+  - [x] 0.3 Confirmar ausência de backend remoto compartilhado
     - **Objetivo:** Garantir que o backend Terraform não aponta para estado da POC MCP
     - **Arquivos:** `terraform/providers.tf`, `terraform/terraform.tf`
     - **Dependências:** 0.1
@@ -49,7 +49,7 @@ Este plano implementa a substituição da camada MCP pela integração direta co
     - **Critério de conclusão:** Independência de backend confirmada
     - **Requisitos:** 9.1, 9.11, 15.1
 
-  - [ ] 0.4 Confirmar prefixo de recurso atual
+  - [x] 0.4 Confirmar prefixo de recurso atual
     - **Objetivo:** Verificar que `terraform/locals.tf` usa o prefixo `connect-bedrock-poc`
     - **Arquivos:** `terraform/locals.tf`
     - **Dependências:** 0.1
@@ -61,7 +61,7 @@ Este plano implementa a substituição da camada MCP pela integração direta co
     - **Critério de conclusão:** Estado atual do prefixo documentado
     - **Requisitos:** 9.2, 15.2
 
-  - [ ] 0.5 Inventariar arquivos MCP a serem removidos deste repositório
+  - [x] 0.5 Inventariar arquivos MCP a serem removidos deste repositório
     - **Objetivo:** Listar todos os arquivos e referências MCP que devem ser removidos da POC Bedrock (sem afetar POC MCP original)
     - **Arquivos:** `src/shared/mcp_client/`, `src/mcp_server/`, `terraform/function_url.tf`, `scripts/smoke_test_mcp.ps1`, `scripts/diagnose_mcp.ps1`
     - **Dependências:** 0.1
@@ -75,7 +75,7 @@ Este plano implementa a substituição da camada MCP pela integração direta co
     - **Critério de conclusão:** Inventário MCP completo e documentado
     - **Requisitos:** 9.4, 9.5, 15.4
 
-  - [ ] 0.6 Confirmar valores existentes de infraestrutura
+  - [x] 0.6 Confirmar valores existentes de infraestrutura
     - **Objetivo:** Confirmar que os valores de configuração da infraestrutura estão corretos para replicação
     - **Arquivos:** `terraform/variables.tf`, `src/integrator/config.py`
     - **Dependências:** 0.1
@@ -91,7 +91,7 @@ Este plano implementa a substituição da camada MCP pela integração direta co
     - **Critério de conclusão:** Valores documentados e validados
     - **Requisitos:** 7.3, 7.4, 9.10
 
-  - [ ] 0.7 Criar checklist de proteção contra impacto na POC MCP
+  - [x] 0.7 Criar checklist de proteção contra impacto na POC MCP
     - **Objetivo:** Criar documento de verificação pré-plan que será usado em todas as fases de Terraform
     - **Arquivos:** `docs/pre-plan-checklist.md` (novo)
     - **Dependências:** 0.2, 0.3, 0.4, 0.5, 0.6
@@ -108,14 +108,14 @@ Este plano implementa a substituição da camada MCP pela integração direta co
     - **Critério de conclusão:** Checklist revisável e pronta para uso nas fases seguintes
     - **Requisitos:** 9.11, 15.5, 15.6
 
-- [ ] 1. GATE Fase 0 — Isolamento confirmado
+- [x] 1. GATE Fase 0 — Isolamento confirmado
   - Ensure all tests pass, ask the user if questions arise.
   - **Critério:** NENHUMA implementação inicia até que todas as verificações de isolamento estejam concluídas e documentadas.
 
 ### Fase 1 — Descoberta do Modelo Bedrock
 
 - [ ] 2. Descobrir e validar modelo Bedrock (requer acesso AWS real)
-  - [ ] 2.1 Listar modelos disponíveis em us-east-1
+  - [~] 2.1 Listar modelos disponíveis em us-east-1
     - **Objetivo:** Obter lista real de modelos disponíveis na região de deploy
     - **Arquivos:** N/A (comando AWS CLI)
     - **Dependências:** 0.7 (Gate Fase 0 aprovado)
@@ -129,7 +129,7 @@ Este plano implementa a substituição da camada MCP pela integração direta co
     - **Requisitos:** 10.1
     - **⚠️ Requer:** Acesso AWS real com credenciais válidas
 
-  - [ ] 2.2 Verificar suporte à Converse API
+  - [~] 2.2 Verificar suporte à Converse API
     - **Objetivo:** Confirmar que os modelos candidatos suportam o método `converse` do Bedrock Runtime
     - **Arquivos:** N/A (verificação AWS)
     - **Dependências:** 2.1
@@ -142,7 +142,7 @@ Este plano implementa a substituição da camada MCP pela integração direta co
     - **Requisitos:** 10.1, 2.1
     - **⚠️ Requer:** Acesso AWS real
 
-  - [ ] 2.3 Verificar acesso na conta
+  - [~] 2.3 Verificar acesso na conta
     - **Objetivo:** Confirmar que o modelo está habilitado/acessível na conta AWS atual
     - **Arquivos:** N/A (verificação AWS)
     - **Dependências:** 2.2
@@ -156,7 +156,7 @@ Este plano implementa a substituição da camada MCP pela integração direta co
     - **Requisitos:** 10.1
     - **⚠️ Requer:** Acesso AWS real
 
-  - [ ] 2.4 Testar candidatos em português
+  - [~] 2.4 Testar candidatos em português
     - **Objetivo:** Verificar qualidade de geração em português brasileiro para cada candidato
     - **Arquivos:** N/A (teste interativo AWS)
     - **Dependências:** 2.3
@@ -171,7 +171,7 @@ Este plano implementa a substituição da camada MCP pela integração direta co
     - **Requisitos:** 4.2, 10.1
     - **⚠️ Requer:** Acesso AWS real
 
-  - [ ] 2.5 Verificar foundation model vs inference profile
+  - [~] 2.5 Verificar foundation model vs inference profile
     - **Objetivo:** Determinar se o modelo selecionado deve ser invocado como foundation model direto ou via inference profile
     - **Arquivos:** N/A (verificação AWS)
     - **Dependências:** 2.4
@@ -186,7 +186,7 @@ Este plano implementa a substituição da camada MCP pela integração direta co
     - **Requisitos:** 9.8, 11.3
     - **⚠️ Requer:** Acesso AWS real
 
-  - [ ] 2.6 Validar ARN para IAM
+  - [~] 2.6 Validar ARN para IAM
     - **Objetivo:** Confirmar que o ARN específico do modelo funciona como Resource em policy IAM `bedrock:InvokeModel`
     - **Arquivos:** N/A (verificação AWS)
     - **Dependências:** 2.5
@@ -200,7 +200,7 @@ Este plano implementa a substituição da camada MCP pela integração direta co
     - **Requisitos:** 9.8, 11.3
     - **⚠️ Requer:** Acesso AWS real + permissões IAM
 
-  - [ ] 2.7 Registrar modelo escolhido, região e evidência
+  - [~] 2.7 Registrar modelo escolhido, região e evidência
     - **Objetivo:** Documentar formalmente a decisão do modelo com todas as evidências coletadas
     - **Arquivos:** `docs/model-selection-evidence.md` (novo)
     - **Dependências:** 2.4, 2.5, 2.6
@@ -214,7 +214,7 @@ Este plano implementa a substituição da camada MCP pela integração direta co
     - **Critério de conclusão:** Decisão formal documentada com evidências
     - **Requisitos:** 10.3
 
-  - [ ] 2.8 Medir latência inicial
+  - [~] 2.8 Medir latência inicial
     - **Objetivo:** Medir latência P50 e P99 da Converse API para o modelo escolhido
     - **Arquivos:** `docs/model-selection-evidence.md` (atualizado)
     - **Dependências:** 2.7
@@ -229,7 +229,7 @@ Este plano implementa a substituição da camada MCP pela integração direta co
     - **Requisitos:** 10.3
     - **⚠️ Requer:** Acesso AWS real
 
-  - [ ] 2.9 Decidir BEDROCK_MODEL_ID
+  - [~] 2.9 Decidir BEDROCK_MODEL_ID
     - **Objetivo:** Decisão final do valor para a variável de ambiente BEDROCK_MODEL_ID
     - **Arquivos:** `docs/model-selection-evidence.md` (atualizado)
     - **Dependências:** 2.7, 2.8
@@ -256,7 +256,7 @@ Este plano implementa a substituição da camada MCP pela integração direta co
     - **Critério de conclusão:** Módulo importável com interface pública definida
     - **Requisitos:** 8.1
 
-  - [ ] 3.2 Criar `src/shared/bedrock_client/config.py`
+  - [~] 3.2 Criar `src/shared/bedrock_client/config.py`
     - **Objetivo:** Implementar leitura e validação de variáveis de ambiente do BedrockClient
     - **Arquivos:** `src/shared/bedrock_client/config.py` (novo)
     - **Dependências:** 3.1
@@ -274,7 +274,7 @@ Este plano implementa a substituição da camada MCP pela integração direta co
     - **Critério de conclusão:** Configuração lida e validada corretamente
     - **Requisitos:** 2.2, 2.3, 2.4, 2.5, 8.2, 8.7, 10.5
 
-  - [ ] 3.3 Criar `src/shared/bedrock_client/exceptions.py`
+  - [~] 3.3 Criar `src/shared/bedrock_client/exceptions.py`
     - **Objetivo:** Definir hierarquia de exceções do módulo BedrockClient
     - **Arquivos:** `src/shared/bedrock_client/exceptions.py` (novo)
     - **Dependências:** 3.1
@@ -288,7 +288,7 @@ Este plano implementa a substituição da camada MCP pela integração direta co
     - **Critério de conclusão:** Todas as 5 classes de exceção implementadas
     - **Requisitos:** 6.1, 6.2, 6.3, 6.4, 6.5, 6.6, 6.7, 8.6
 
-  - [ ] 3.4 Criar `src/shared/bedrock_client/response_parser.py`
+  - [~] 3.4 Criar `src/shared/bedrock_client/response_parser.py`
     - **Objetivo:** Implementar extração de texto da resposta da Converse API
     - **Arquivos:** `src/shared/bedrock_client/response_parser.py` (novo)
     - **Dependências:** 3.1
@@ -304,7 +304,7 @@ Este plano implementa a substituição da camada MCP pela integração direta co
     - **Critério de conclusão:** Parser extrai texto corretamente para todos os cenários da tabela do design §9
     - **Requisitos:** 3.1, 3.2, 3.3, 3.6
 
-  - [ ] 3.5 Criar `src/shared/bedrock_client/client.py`
+  - [~] 3.5 Criar `src/shared/bedrock_client/client.py`
     - **Objetivo:** Implementar a classe BedrockClient principal com método `converse`
     - **Arquivos:** `src/shared/bedrock_client/client.py` (novo)
     - **Dependências:** 3.2, 3.3, 3.4
@@ -321,7 +321,7 @@ Este plano implementa a substituição da camada MCP pela integração direta co
     - **Critério de conclusão:** Classe BedrockClient funcional com método converse
     - **Requisitos:** 2.1, 2.6, 2.7, 8.2, 8.3
 
-  - [ ] 3.6 Implementar validação de variáveis na inicialização
+  - [~] 3.6 Implementar validação de variáveis na inicialização
     - **Objetivo:** Garantir que `BedrockConfigurationError` é lançado se BEDROCK_MODEL_ID ausente/vazio ou valores numéricos fora dos ranges
     - **Arquivos:** `src/shared/bedrock_client/config.py`, `src/shared/bedrock_client/client.py`
     - **Dependências:** 3.2, 3.5
@@ -335,7 +335,7 @@ Este plano implementa a substituição da camada MCP pela integração direta co
     - **Critério de conclusão:** Todas as validações implementadas com mensagens claras
     - **Requisitos:** 2.3, 2.4, 2.8, 10.5
 
-  - [ ] 3.7 Implementar criação do cliente boto3
+  - [~] 3.7 Implementar criação do cliente boto3
     - **Objetivo:** Criar cliente bedrock-runtime com região e timeout configurados
     - **Arquivos:** `src/shared/bedrock_client/client.py`
     - **Dependências:** 3.5, 3.6
@@ -347,7 +347,7 @@ Este plano implementa a substituição da camada MCP pela integração direta co
     - **Critério de conclusão:** Cliente boto3 criado e reutilizável
     - **Requisitos:** 8.2
 
-  - [ ] 3.8 Implementar montagem da requisição Converse API
+  - [~] 3.8 Implementar montagem da requisição Converse API
     - **Objetivo:** Construir o payload correto para a chamada `converse`
     - **Arquivos:** `src/shared/bedrock_client/client.py`
     - **Dependências:** 3.5
@@ -360,7 +360,7 @@ Este plano implementa a substituição da camada MCP pela integração direta co
     - **Critério de conclusão:** Payload da requisição segue especificação exata
     - **Requisitos:** 2.1, 2.6, 4.1
 
-  - [ ] 3.9 Implementar parsing multi-bloco da resposta
+  - [~] 3.9 Implementar parsing multi-bloco da resposta
     - **Objetivo:** Extrair texto de respostas com múltiplos blocos de conteúdo
     - **Arquivos:** `src/shared/bedrock_client/response_parser.py`
     - **Dependências:** 3.4
@@ -374,7 +374,7 @@ Este plano implementa a substituição da camada MCP pela integração direta co
     - **Critério de conclusão:** Parser lida corretamente com 0, 1 e N blocos de texto
     - **Requisitos:** 3.2, 3.3, 3.6
 
-  - [ ] 3.10 Implementar mensagem de fallback
+  - [~] 3.10 Implementar mensagem de fallback
     - **Objetivo:** Retornar mensagem amigável quando resposta do modelo é vazia ou sem texto
     - **Arquivos:** `src/shared/bedrock_client/response_parser.py`
     - **Dependências:** 3.4
@@ -385,7 +385,7 @@ Este plano implementa a substituição da camada MCP pela integração direta co
     - **Critério de conclusão:** Fallback implementado e consistente
     - **Requisitos:** 3.3, 3.6
 
-  - [ ] 3.11 Implementar classificação de erros
+  - [~] 3.11 Implementar classificação de erros
     - **Objetivo:** Mapear exceções boto3/botocore para hierarquia de exceções do módulo
     - **Arquivos:** `src/shared/bedrock_client/client.py`
     - **Dependências:** 3.3, 3.5
@@ -404,7 +404,7 @@ Este plano implementa a substituição da camada MCP pela integração direta co
     - **Critério de conclusão:** Todos os 10 mapeamentos implementados conforme tabela do design §10
     - **Requisitos:** 6.1, 6.2, 6.3, 6.4, 6.5, 6.6, 6.7
 
-  - [ ] 3.12 Implementar timeout e verificação de tempo restante
+  - [~] 3.12 Implementar timeout e verificação de tempo restante
     - **Objetivo:** Abortar chamada ao Bedrock se não houver tempo suficiente na Lambda
     - **Arquivos:** `src/shared/bedrock_client/client.py`
     - **Dependências:** 3.5
@@ -418,7 +418,7 @@ Este plano implementa a substituição da camada MCP pela integração direta co
     - **Critério de conclusão:** Duas camadas de timeout implementadas (pré-chamada e socket)
     - **Requisitos:** 2.10, 8.7
 
-  - [ ] 3.13 Implementar logging sanitizado
+  - [~] 3.13 Implementar logging sanitizado
     - **Objetivo:** Registrar métricas de diagnóstico sem expor dados sensíveis em NENHUM nível de log
     - **Arquivos:** `src/shared/bedrock_client/client.py`
     - **Dependências:** 3.5
@@ -432,7 +432,7 @@ Este plano implementa a substituição da camada MCP pela integração direta co
     - **Critério de conclusão:** Zero dados sensíveis nos logs em qualquer nível (incluindo DEBUG)
     - **Requisitos:** 8.4, 8.5, 11.1, 11.2, 11.5
 
-  - [ ] 3.14 Criar system prompt padrão
+  - [~] 3.14 Criar system prompt padrão
     - **Objetivo:** Definir o system prompt padrão em português com todas as instruções obrigatórias
     - **Arquivos:** `src/shared/bedrock_client/config.py`
     - **Dependências:** 3.2
@@ -449,14 +449,14 @@ Este plano implementa a substituição da camada MCP pela integração direta co
     - **Critério de conclusão:** System prompt com 5 instruções obrigatórias implementado
     - **Requisitos:** 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 4.7
 
-- [ ] 4. Checkpoint — BedrockClient implementado
+- [~] 4. Checkpoint — BedrockClient implementado
   - Ensure all tests pass, ask the user if questions arise.
   - **Critério:** Módulo `src/shared/bedrock_client/` completo com todas as classes, config, parser, client e exceções. Código compila sem erros de sintaxe.
 
 ### Fase 3 — Integração com Integrator
 
 - [ ] 5. Adaptar Integrator para usar BedrockClient
-  - [ ] 5.1 Remover dependência do MCPClient (somente neste repositório)
+  - [~] 5.1 Remover dependência do MCPClient (somente neste repositório)
     - **Objetivo:** Remover imports e referências ao MCPClient do processor do Integrator
     - **Arquivos:** `src/integrator/processor.py`
     - **Dependências:** 3.5 (BedrockClient pronto)
@@ -471,7 +471,7 @@ Este plano implementa a substituição da camada MCP pela integração direta co
     - **Critério de conclusão:** Zero referências a MCPClient no processor
     - **Requisitos:** 9.5
 
-  - [ ] 5.2 Injetar BedrockClient no processor
+  - [~] 5.2 Injetar BedrockClient no processor
     - **Objetivo:** Substituir MCPClient por BedrockClient como provedor de IA no MessageProcessor
     - **Arquivos:** `src/integrator/processor.py`
     - **Dependências:** 5.1, 3.5
@@ -485,7 +485,7 @@ Este plano implementa a substituição da camada MCP pela integração direta co
     - **Critério de conclusão:** BedrockClient integrado como dependência do processor
     - **Requisitos:** 2.7, 8.3
 
-  - [ ] 5.3 Preservar event parser
+  - [~] 5.3 Preservar event parser
     - **Objetivo:** Confirmar que o event_parser.py permanece inalterado
     - **Arquivos:** `src/integrator/event_parser.py`
     - **Dependências:** 5.1
@@ -497,7 +497,7 @@ Este plano implementa a substituição da camada MCP pela integração direta co
     - **Critério de conclusão:** Event parser preservado sem modificações
     - **Requisitos:** 1.1, 1.7
 
-  - [ ] 5.4 Preservar skip de MESSAGEMETADATA
+  - [~] 5.4 Preservar skip de MESSAGEMETADATA
     - **Objetivo:** Confirmar que eventos MESSAGEMETADATA continuam sendo ignorados
     - **Arquivos:** `src/integrator/event_parser.py`, `src/integrator/handler.py`
     - **Dependências:** 5.3
@@ -509,7 +509,7 @@ Este plano implementa a substituição da camada MCP pela integração direta co
     - **Critério de conclusão:** Comportamento MESSAGEMETADATA preservado
     - **Requisitos:** 1.2
 
-  - [ ] 5.5 Preservar filtragem de roles ignoradas
+  - [~] 5.5 Preservar filtragem de roles ignoradas
     - **Objetivo:** Confirmar que roles CUSTOM_BOT, SYSTEM, AGENT continuam ignoradas
     - **Arquivos:** `src/integrator/event_parser.py`
     - **Dependências:** 5.3
@@ -521,7 +521,7 @@ Este plano implementa a substituição da camada MCP pela integração direta co
     - **Critério de conclusão:** Filtragem de roles preservada
     - **Requisitos:** 1.3
 
-  - [ ] 5.6 Preservar suporte a text/plain e text/markdown
+  - [~] 5.6 Preservar suporte a text/plain e text/markdown
     - **Objetivo:** Confirmar que ambos ContentTypes são aceitos para processamento
     - **Arquivos:** `src/integrator/event_parser.py`
     - **Dependências:** 5.3
@@ -533,7 +533,7 @@ Este plano implementa a substituição da camada MCP pela integração direta co
     - **Critério de conclusão:** ContentTypes suportados preservados
     - **Requisitos:** 1.4, 1.5, 1.6
 
-  - [ ] 5.7 Gerar correlation_id antes do parsing
+  - [~] 5.7 Gerar correlation_id antes do parsing
     - **Objetivo:** Implementar resolução de correlation_id como primeiro passo para cada registro SQS
     - **Arquivos:** `src/integrator/handler.py`
     - **Dependências:** 5.1
@@ -549,7 +549,7 @@ Este plano implementa a substituição da camada MCP pela integração direta co
     - **Critério de conclusão:** Correlation ID gerado/propagado como primeiro passo
     - **Requisitos:** 5.1, 5.2, 5.3, 5.4, 5.5
 
-  - [ ] 5.8 Preservar idempotência
+  - [~] 5.8 Preservar idempotência
     - **Objetivo:** Confirmar que o mecanismo de idempotência permanece funcional
     - **Arquivos:** `src/integrator/idempotency_repository.py`, `src/integrator/handler.py`
     - **Dependências:** 5.1
@@ -563,7 +563,7 @@ Este plano implementa a substituição da camada MCP pela integração direta co
     - **Critério de conclusão:** Idempotência preservada sem alterações
     - **Requisitos:** 7.2, 7.4
 
-  - [ ] 5.9 Preservar renovação de token
+  - [~] 5.9 Preservar renovação de token
     - **Objetivo:** Confirmar que o mecanismo de token renewal permanece funcional
     - **Arquivos:** `src/integrator/processor.py`
     - **Dependências:** 5.2
@@ -576,7 +576,7 @@ Este plano implementa a substituição da camada MCP pela integração direta co
     - **Critério de conclusão:** Renovação de token preservada
     - **Requisitos:** 7.5
 
-  - [ ] 5.10 Mapear erros transitórios do Bedrock para batchItemFailures
+  - [~] 5.10 Mapear erros transitórios do Bedrock para batchItemFailures
     - **Objetivo:** Implementar tratamento de BedrockTransientError/BedrockTimeoutError como fail item
     - **Arquivos:** `src/integrator/processor.py`
     - **Dependências:** 5.2
@@ -589,7 +589,7 @@ Este plano implementa a substituição da camada MCP pela integração direta co
     - **Critério de conclusão:** Erros transitórios geram retry via SQS
     - **Requisitos:** 6.1, 6.3, 6.4, 6.6
 
-  - [ ] 5.11 Mapear erros fatais do Bedrock para mensagem + FAILED_FINAL
+  - [~] 5.11 Mapear erros fatais do Bedrock para mensagem + FAILED_FINAL
     - **Objetivo:** Implementar tratamento de BedrockFatalError: enviar mensagem de erro ao usuário e marcar FAILED_FINAL
     - **Arquivos:** `src/integrator/processor.py`
     - **Dependências:** 5.2
@@ -603,7 +603,7 @@ Este plano implementa a substituição da camada MCP pela integração direta co
     - **Critério de conclusão:** Erros fatais resultam em mensagem amigável ao usuário
     - **Requisitos:** 6.2, 6.5, 6.7
 
-  - [ ] 5.12 Implementar passagem de remaining_time_ms ao BedrockClient
+  - [~] 5.12 Implementar passagem de remaining_time_ms ao BedrockClient
     - **Objetivo:** Passar o tempo restante da Lambda ao BedrockClient para proteção de timeout
     - **Arquivos:** `src/integrator/processor.py`, `src/integrator/handler.py`
     - **Dependências:** 5.2
@@ -616,14 +616,14 @@ Este plano implementa a substituição da camada MCP pela integração direta co
     - **Critério de conclusão:** Proteção de timeout integrada no fluxo
     - **Requisitos:** 2.10, 8.7
 
-- [ ] 6. Checkpoint — Integração Bedrock completa
+- [~] 6. Checkpoint — Integração Bedrock completa
   - Ensure all tests pass, ask the user if questions arise.
   - **Critério:** Processor usa BedrockClient; erros classificados corretamente; padrões de confiabilidade preservados; correlation_id propagado.
 
 ### Fase 4 — Terraform Independente
 
 - [ ] 7. Configurar infraestrutura Terraform independente
-  - [ ] 7.1 Confirmar estado independente
+  - [~] 7.1 Confirmar estado independente
     - **Objetivo:** Verificar/criar backend Terraform exclusivo para a POC Bedrock
     - **Arquivos:** `terraform/providers.tf`, `terraform/terraform.tf`
     - **Dependências:** 0.7 (Gate Fase 0)
@@ -635,7 +635,7 @@ Este plano implementa a substituição da camada MCP pela integração direta co
     - **Critério de conclusão:** Backend Terraform isolado confirmado
     - **Requisitos:** 9.1, 15.1
 
-  - [ ] 7.2 Alterar prefixo para `connect-bedrock-poc`
+  - [~] 7.2 Alterar prefixo para `connect-bedrock-poc`
     - **Objetivo:** Atualizar `terraform/locals.tf` com o novo prefixo de recursos
     - **Arquivos:** `terraform/locals.tf`
     - **Dependências:** 7.1
@@ -647,7 +647,7 @@ Este plano implementa a substituição da camada MCP pela integração direta co
     - **Critério de conclusão:** Todos os nomes de recurso usam prefixo `connect-bedrock-poc`
     - **Requisitos:** 9.2, 15.2
 
-  - [ ] 7.3 Remover provisionamento MCP deste repositório
+  - [~] 7.3 Remover provisionamento MCP deste repositório
     - **Objetivo:** Remover recursos MCP Server Lambda, IAM role e log group da configuração Terraform
     - **Arquivos:** `terraform/lambda.tf`, `terraform/iam.tf`, `terraform/monitoring.tf`
     - **Dependências:** 7.2, 0.5
@@ -661,7 +661,7 @@ Este plano implementa a substituição da camada MCP pela integração direta co
     - **Critério de conclusão:** Provisionamento MCP removido dos arquivos Terraform
     - **Requisitos:** 9.4
 
-  - [ ] 7.4 Remover Function URL deste repositório
+  - [~] 7.4 Remover Function URL deste repositório
     - **Objetivo:** Remover configuração de Lambda Function URL do Terraform
     - **Arquivos:** `terraform/function_url.tf`
     - **Dependências:** 7.3
@@ -673,7 +673,7 @@ Este plano implementa a substituição da camada MCP pela integração direta co
     - **Critério de conclusão:** Function URL completamente removida da config
     - **Requisitos:** 9.4
 
-  - [ ] 7.5 Remover permissões MCP do IAM
+  - [~] 7.5 Remover permissões MCP do IAM
     - **Objetivo:** Remover `lambda:InvokeFunctionUrl` e permissões MCP do Integrator IAM role
     - **Arquivos:** `terraform/iam.tf`
     - **Dependências:** 7.3
@@ -685,7 +685,7 @@ Este plano implementa a substituição da camada MCP pela integração direta co
     - **Critério de conclusão:** Permissões MCP removidas; demais preservadas
     - **Requisitos:** 9.5
 
-  - [ ] 7.6 Adicionar variáveis BEDROCK_* ao Terraform
+  - [~] 7.6 Adicionar variáveis BEDROCK_* ao Terraform
     - **Objetivo:** Criar variáveis Terraform para configuração do Bedrock
     - **Arquivos:** `terraform/variables.tf`
     - **Dependências:** 7.2
@@ -700,7 +700,7 @@ Este plano implementa a substituição da camada MCP pela integração direta co
     - **Critério de conclusão:** Todas as 5 variáveis Bedrock definidas
     - **Requisitos:** 9.7, 9.9, 10.2
 
-  - [ ] 7.7 Adicionar permissão `bedrock:InvokeModel` ao IAM
+  - [~] 7.7 Adicionar permissão `bedrock:InvokeModel` ao IAM
     - **Objetivo:** Conceder permissão ao Integrator para invocar modelos Bedrock
     - **Arquivos:** `terraform/iam.tf`
     - **Dependências:** 7.5, 7.6, 2.6
@@ -714,7 +714,7 @@ Este plano implementa a substituição da camada MCP pela integração direta co
     - **Requisitos:** 9.8, 11.3
     - **⚠️ Bloqueado até:** Decisão do modelo (Fase 1, task 2.6)
 
-  - [ ] 7.8 Usar ARN específico validado
+  - [~] 7.8 Usar ARN específico validado
     - **Objetivo:** Garantir que o Resource do IAM policy usa o ARN validado (não hardcoded)
     - **Arquivos:** `terraform/iam.tf`
     - **Dependências:** 7.7, 2.6
@@ -727,7 +727,7 @@ Este plano implementa a substituição da camada MCP pela integração direta co
     - **Critério de conclusão:** ARN construído dinamicamente e validado
     - **Requisitos:** 9.8, 11.3
 
-  - [ ] 7.9 Manter wildcard apenas se tecnicamente necessário
+  - [~] 7.9 Manter wildcard apenas se tecnicamente necessário
     - **Objetivo:** Documentar decisão de usar wildcard (se aplicável) com justificativa
     - **Arquivos:** `terraform/iam.tf`, `docs/known-limitations.md`
     - **Dependências:** 7.8
@@ -739,7 +739,7 @@ Este plano implementa a substituição da camada MCP pela integração direta co
     - **Critério de conclusão:** Escopo IAM definido com justificativa documentada
     - **Requisitos:** 9.8, 11.3
 
-  - [ ] 7.10 Configurar variáveis de ambiente BEDROCK_* na Lambda Integrator
+  - [~] 7.10 Configurar variáveis de ambiente BEDROCK_* na Lambda Integrator
     - **Objetivo:** Adicionar variáveis de ambiente Bedrock na configuração da Lambda Integrator
     - **Arquivos:** `terraform/lambda.tf`
     - **Dependências:** 7.6
@@ -755,7 +755,7 @@ Este plano implementa a substituição da camada MCP pela integração direta co
     - **Critério de conclusão:** Variáveis de ambiente do Integrator atualizadas
     - **Requisitos:** 9.5, 9.7
 
-  - [ ] 7.11 Provisionar recursos próprios (SNS, SQS, DLQ, KMS, DynamoDB, Lambda)
+  - [~] 7.11 Provisionar recursos próprios (SNS, SQS, DLQ, KMS, DynamoDB, Lambda)
     - **Objetivo:** Confirmar que todos os recursos usam prefixo `connect-bedrock-poc` e são independentes
     - **Arquivos:** `terraform/sns.tf`, `terraform/sqs.tf`, `terraform/kms.tf`, `terraform/dynamodb.tf`, `terraform/lambda.tf`
     - **Dependências:** 7.2
@@ -771,7 +771,7 @@ Este plano implementa a substituição da camada MCP pela integração direta co
     - **Critério de conclusão:** Recursos totalmente independentes e com nomes distintos
     - **Requisitos:** 9.2, 9.10, 15.2
 
-  - [ ] 7.12 Criar Contact Flow separado
+  - [~] 7.12 Criar Contact Flow separado
     - **Objetivo:** Configurar Contact Flow dedicado à POC Bedrock (separado do flow MCP)
     - **Arquivos:** `terraform/` (novo recurso ou data source)
     - **Dependências:** 7.11
@@ -785,7 +785,7 @@ Este plano implementa a substituição da camada MCP pela integração direta co
     - **Critério de conclusão:** Contact Flow separado definido (Terraform ou documentado)
     - **Requisitos:** 9.3, 15.3
 
-  - [ ] 7.13 Atualizar outputs
+  - [~] 7.13 Atualizar outputs
     - **Objetivo:** Remover outputs MCP e adicionar outputs Bedrock
     - **Arquivos:** `terraform/outputs.tf`
     - **Dependências:** 7.3, 7.6, 7.10
@@ -798,7 +798,7 @@ Este plano implementa a substituição da camada MCP pela integração direta co
     - **Critério de conclusão:** Outputs atualizados para refletir POC Bedrock
     - **Requisitos:** 9.4, 9.7
 
-  - [ ] 7.14 Revisar monitoring
+  - [~] 7.14 Revisar monitoring
     - **Objetivo:** Preservar alarmes existentes e adicionar alarme de latência Bedrock
     - **Arquivos:** `terraform/monitoring.tf`
     - **Dependências:** 7.3
@@ -811,7 +811,7 @@ Este plano implementa a substituição da camada MCP pela integração direta co
     - **Critério de conclusão:** Monitoring atualizado para POC Bedrock
     - **Requisitos:** 9.10
 
-  - [ ] 7.15 Criar validação pré-plan
+  - [~] 7.15 Criar validação pré-plan
     - **Objetivo:** Implementar script que valida segurança antes de executar `terraform plan`
     - **Arquivos:** `scripts/validate_pre_plan.ps1` (novo)
     - **Dependências:** 0.7, 7.2
@@ -826,7 +826,7 @@ Este plano implementa a substituição da camada MCP pela integração direta co
     - **Critério de conclusão:** Script de validação pré-plan funcional
     - **Requisitos:** 9.11, 15.6
 
-- [ ] 8. GATE Fase 4 — Terraform revisado
+- [~] 8. GATE Fase 4 — Terraform revisado
   - Ensure all tests pass, ask the user if questions arise.
   - **Critério:** Qualquer `terraform plan` mencionando `connect-mcp-poc` DEVE falhar na revisão. NÃO executar apply nesta fase.
   - **⚠️ AUTORIZAÇÃO NECESSÁRIA:** Não executar `terraform apply` sem aprovação explícita do operador.
@@ -834,7 +834,7 @@ Este plano implementa a substituição da camada MCP pela integração direta co
 ### Fase 5 — Testes
 
 - [ ] 9. Implementar testes unitários do BedrockClient
-  - [ ] 9.1 Testes unitários de configuração
+  - [~] 9.1 Testes unitários de configuração
     - **Objetivo:** Testar validação de variáveis de ambiente em `bedrock_client/config.py`
     - **Arquivos:** `tests/unit/test_bedrock_config.py` (novo)
     - **Dependências:** 3.2, 3.6
@@ -855,7 +855,7 @@ Este plano implementa a substituição da camada MCP pela integração direta co
     - **Critério de conclusão:** 12+ testes unitários passando
     - **Requisitos:** 2.3, 2.4, 2.5, 2.8, 4.2, 4.3, 4.4, 4.5, 4.6, 4.7, 10.5, 12.3
 
-  - [ ] 9.2 Testes unitários do response parser
+  - [~] 9.2 Testes unitários do response parser
     - **Objetivo:** Testar extração de texto para todos os cenários de resposta da Converse API
     - **Arquivos:** `tests/unit/test_bedrock_response_parser.py` (novo)
     - **Dependências:** 3.4, 3.9, 3.10
@@ -871,7 +871,7 @@ Este plano implementa a substituição da camada MCP pela integração direta co
     - **Critério de conclusão:** Todos os cenários de parsing testados
     - **Requisitos:** 3.1, 3.2, 3.3, 3.6, 12.1, 12.2, 12.3, 12.10
 
-  - [ ] 9.3 Testes unitários de exceções e classificação de erros
+  - [~] 9.3 Testes unitários de exceções e classificação de erros
     - **Objetivo:** Testar mapeamento de exceções AWS para hierarquia do módulo
     - **Arquivos:** `tests/unit/test_bedrock_exceptions.py` (novo)
     - **Dependências:** 3.3, 3.11
@@ -890,7 +890,7 @@ Este plano implementa a substituição da camada MCP pela integração direta co
     - **Critério de conclusão:** Todos os mapeamentos de erro testados
     - **Requisitos:** 6.1, 6.2, 6.3, 6.4, 6.5, 6.6, 6.7, 12.4, 12.5, 12.6
 
-  - [ ] 9.4 Testes unitários de timeout
+  - [~] 9.4 Testes unitários de timeout
     - **Objetivo:** Testar comportamento de timeout em ambas as camadas (pré-chamada e socket)
     - **Arquivos:** `tests/unit/test_bedrock_timeout.py` (novo)
     - **Dependências:** 3.12
@@ -904,7 +904,7 @@ Este plano implementa a substituição da camada MCP pela integração direta co
     - **Critério de conclusão:** Ambas as camadas de timeout testadas
     - **Requisitos:** 2.10, 8.7, 12.6
 
-  - [ ] 9.5 Testes unitários de sanitização de logs
+  - [~] 9.5 Testes unitários de sanitização de logs
     - **Objetivo:** Verificar que dados sensíveis NUNCA aparecem nos logs em NENHUM nível
     - **Arquivos:** `tests/unit/test_log_sanitization.py` (novo)
     - **Dependências:** 3.13
@@ -920,7 +920,7 @@ Este plano implementa a substituição da camada MCP pela integração direta co
     - **Critério de conclusão:** Zero dados sensíveis nos logs; métricas presentes
     - **Requisitos:** 8.4, 8.5, 11.1, 11.2, 11.5
 
-  - [ ] 9.6 Testes unitários do handler adaptado
+  - [~] 9.6 Testes unitários do handler adaptado
     - **Objetivo:** Testar handler do Integrator com BedrockClient mockado
     - **Arquivos:** `tests/unit/test_handler.py` (novo ou adaptado)
     - **Dependências:** 5.2, 5.10, 5.11
@@ -935,7 +935,7 @@ Este plano implementa a substituição da camada MCP pela integração direta co
     - **Critério de conclusão:** Handler funciona corretamente com BedrockClient
     - **Requisitos:** 1.1, 1.2, 1.3, 7.1, 12.7, 12.8
 
-  - [ ] 9.7 Testes de idempotência
+  - [~] 9.7 Testes de idempotência
     - **Objetivo:** Testar que o mecanismo de idempotência continua funcional
     - **Arquivos:** `tests/unit/test_idempotency.py` (novo ou adaptado)
     - **Dependências:** 5.8
@@ -951,7 +951,7 @@ Este plano implementa a substituição da camada MCP pela integração direta co
     - **Critério de conclusão:** Todos os estados de idempotência testados
     - **Requisitos:** 7.2, 7.4, 7.6
 
-  - [ ] 9.8 Testes de partial batch response
+  - [~] 9.8 Testes de partial batch response
     - **Objetivo:** Testar que batchItemFailures é reportado corretamente
     - **Arquivos:** `tests/unit/test_partial_batch.py` (novo ou adaptado)
     - **Dependências:** 5.10
@@ -964,7 +964,7 @@ Este plano implementa a substituição da camada MCP pela integração direta co
     - **Critério de conclusão:** Partial batch response correto em todos os cenários
     - **Requisitos:** 7.1
 
-  - [ ] 9.9 Testes de MESSAGEMETADATA
+  - [~] 9.9 Testes de MESSAGEMETADATA
     - **Objetivo:** Testar filtragem correta de eventos MESSAGEMETADATA
     - **Arquivos:** `tests/unit/test_event_parser.py` (adaptado)
     - **Dependências:** 5.4
@@ -976,7 +976,7 @@ Este plano implementa a substituição da camada MCP pela integração direta co
     - **Critério de conclusão:** Filtragem de MESSAGEMETADATA testada
     - **Requisitos:** 1.2, 12.8
 
-  - [ ] 9.10 Testes de filtragem por role
+  - [~] 9.10 Testes de filtragem por role
     - **Objetivo:** Testar que roles não-CUSTOMER são ignoradas
     - **Arquivos:** `tests/unit/test_event_parser.py` (adaptado)
     - **Dependências:** 5.5
@@ -989,7 +989,7 @@ Este plano implementa a substituição da camada MCP pela integração direta co
     - **Critério de conclusão:** Filtragem de roles testada
     - **Requisitos:** 1.3
 
-  - [ ] 9.11 Testes de ContentType
+  - [~] 9.11 Testes de ContentType
     - **Objetivo:** Testar aceitação de text/plain e text/markdown e rejeição de outros
     - **Arquivos:** `tests/unit/test_event_parser.py` (adaptado)
     - **Dependências:** 5.6
@@ -1022,7 +1022,7 @@ Este plano implementa a substituição da camada MCP pela integração direta co
     - **Requisitos:** 12.1, 12.2, 12.3, 12.4, 12.5, 12.6, 12.7, 12.8, 12.9, 12.10
 
 - [ ] 10. Implementar testes de integração
-  - [ ] 10.1 Teste de integração: fluxo completo MESSAGE/CUSTOMER
+  - [~] 10.1 Teste de integração: fluxo completo MESSAGE/CUSTOMER
     - **Objetivo:** Testar fluxo ponta a ponta com BedrockClient mockado
     - **Arquivos:** `tests/integration/test_integrator_bedrock_flow.py` (novo)
     - **Dependências:** 5.2, 9.6
@@ -1038,7 +1038,7 @@ Este plano implementa a substituição da camada MCP pela integração direta co
     - **Critério de conclusão:** Fluxo MESSAGE → Bedrock → SendMessage → COMPLETED funcional
     - **Requisitos:** 12.7
 
-  - [ ] 10.2 Teste de integração: roteamento de mensagens
+  - [~] 10.2 Teste de integração: roteamento de mensagens
     - **Objetivo:** Testar roteamento correto de diferentes tipos de evento
     - **Arquivos:** `tests/integration/test_message_routing.py` (novo)
     - **Dependências:** 9.9, 9.10, 9.11
@@ -1052,7 +1052,7 @@ Este plano implementa a substituição da camada MCP pela integração direta co
     - **Critério de conclusão:** Roteamento correto para todos os tipos de evento
     - **Requisitos:** 12.8
 
-  - [ ] 10.3 Teste de integração: correlation_id
+  - [~] 10.3 Teste de integração: correlation_id
     - **Objetivo:** Verificar que correlation_id é propagado em TODAS as entradas de log do ciclo
     - **Arquivos:** `tests/integration/test_correlation_id.py` (novo)
     - **Dependências:** 5.7
@@ -1079,7 +1079,7 @@ Este plano implementa a substituição da camada MCP pela integração direta co
     - **Critério de conclusão:** Properties 7 e 9 validadas em contexto de integração
     - **Requisitos:** 12.7, 12.9
 
-  - [ ] 10.5 Verificar cobertura de testes
+  - [~] 10.5 Verificar cobertura de testes
     - **Objetivo:** Executar suíte completa e verificar cobertura mínima
     - **Arquivos:** N/A (execução de testes)
     - **Dependências:** 9.1–9.12, 10.1–10.4
@@ -1092,14 +1092,14 @@ Este plano implementa a substituição da camada MCP pela integração direta co
     - **Critério de conclusão:** Cobertura mínima atingida; gaps avaliados
     - **Requisitos:** 12.1–12.10
 
-- [ ] 11. Checkpoint — Suíte de testes completa
+- [~] 11. Checkpoint — Suíte de testes completa
   - Ensure all tests pass, ask the user if questions arise.
   - **Critério:** `pytest tests/ -v` executa sem falhas. Cobertura de bedrock_client ≥ 90%.
 
 ### Fase 6 — Smoke Test
 
 - [ ] 12. Implementar script de smoke test
-  - [ ] 12.1 Criar `scripts/smoke_test_bedrock.ps1`
+  - [~] 12.1 Criar `scripts/smoke_test_bedrock.ps1`
     - **Objetivo:** Criar o arquivo base do script de smoke test
     - **Arquivos:** `scripts/smoke_test_bedrock.ps1` (novo)
     - **Dependências:** 3.5 (BedrockClient pronto)
@@ -1111,7 +1111,7 @@ Este plano implementa a substituição da camada MCP pela integração direta co
     - **Critério de conclusão:** Arquivo criado com estrutura base
     - **Requisitos:** 13.1
 
-  - [ ] 12.2 Implementar validação de credenciais
+  - [~] 12.2 Implementar validação de credenciais
     - **Objetivo:** Verificar credenciais AWS antes de prosseguir com o teste
     - **Arquivos:** `scripts/smoke_test_bedrock.ps1`
     - **Dependências:** 12.1
@@ -1123,7 +1123,7 @@ Este plano implementa a substituição da camada MCP pela integração direta co
     - **Critério de conclusão:** Validação de credenciais implementada
     - **Requisitos:** 13.2, 13.3
 
-  - [ ] 12.3 Implementar leitura de BEDROCK_MODEL_ID
+  - [~] 12.3 Implementar leitura de BEDROCK_MODEL_ID
     - **Objetivo:** Resolver model ID da variável de ambiente ou default do Terraform
     - **Arquivos:** `scripts/smoke_test_bedrock.ps1`
     - **Dependências:** 12.1
@@ -1135,7 +1135,7 @@ Este plano implementa a substituição da camada MCP pela integração direta co
     - **Critério de conclusão:** Resolução de model ID implementada
     - **Requisitos:** 13.4
 
-  - [ ] 12.4 Usar mesma classe BedrockClient da Lambda
+  - [~] 12.4 Usar mesma classe BedrockClient da Lambda
     - **Objetivo:** Instanciar BedrockClient real (mesma classe usada pelo Integrator)
     - **Arquivos:** `scripts/smoke_test_bedrock.ps1`
     - **Dependências:** 12.3, 3.5
@@ -1147,7 +1147,7 @@ Este plano implementa a substituição da camada MCP pela integração direta co
     - **Critério de conclusão:** Mesma classe do Lambda usada no smoke test
     - **Requisitos:** 13.5
 
-  - [ ] 12.5 Implementar envio de pergunta de teste em português
+  - [~] 12.5 Implementar envio de pergunta de teste em português
     - **Objetivo:** Enviar pergunta curta (≤50 chars) em pt-BR ao Bedrock e aguardar resposta
     - **Arquivos:** `scripts/smoke_test_bedrock.ps1`
     - **Dependências:** 12.4
@@ -1160,7 +1160,7 @@ Este plano implementa a substituição da camada MCP pela integração direta co
     - **Critério de conclusão:** Pergunta enviada e resposta recebida
     - **Requisitos:** 13.6
 
-  - [ ] 12.6 Implementar validação de resposta e saída
+  - [~] 12.6 Implementar validação de resposta e saída
     - **Objetivo:** Validar resposta não vazia e registrar resultado com métricas
     - **Arquivos:** `scripts/smoke_test_bedrock.ps1`
     - **Dependências:** 12.5
@@ -1173,7 +1173,7 @@ Este plano implementa a substituição da camada MCP pela integração direta co
     - **Critério de conclusão:** Smoke test reporta resultado com métricas
     - **Requisitos:** 13.7, 13.8
 
-  - [ ] 12.7 Implementar tratamento de erros de credencial, modelo e permissão
+  - [~] 12.7 Implementar tratamento de erros de credencial, modelo e permissão
     - **Objetivo:** Tratamento específico para erros comuns com mensagens claras
     - **Arquivos:** `scripts/smoke_test_bedrock.ps1`
     - **Dependências:** 12.6
@@ -1187,7 +1187,7 @@ Este plano implementa a substituição da camada MCP pela integração direta co
     - **Critério de conclusão:** Erros comuns tratados com mensagens úteis
     - **Requisitos:** 13.8
 
-- [ ] 13. Checkpoint — Smoke test implementado
+- [~] 13. Checkpoint — Smoke test implementado
   - Ensure all tests pass, ask the user if questions arise.
   - **Critério:** Script `scripts/smoke_test_bedrock.ps1` completo. Smoke test DEVE ser executado com sucesso ANTES de prosseguir para teste de chat.
   - **⚠️ Requer:** Acesso AWS real para execução
@@ -1195,7 +1195,7 @@ Este plano implementa a substituição da camada MCP pela integração direta co
 ### Fase 7 — Deploy Seguro
 
 - [ ] 14. Preparar e executar deploy (requer autorização)
-  - [ ] 14.1 Build Initializer
+  - [~] 14.1 Build Initializer
     - **Objetivo:** Empacotar Lambda Initializer em ZIP
     - **Arquivos:** `packages/initializer.zip` (gerado)
     - **Dependências:** 11 (Gate testes), 13 (Gate smoke test)
@@ -1207,7 +1207,7 @@ Este plano implementa a substituição da camada MCP pela integração direta co
     - **Critério de conclusão:** Initializer empacotado
     - **Requisitos:** 14.3
 
-  - [ ] 14.2 Build Integrator
+  - [~] 14.2 Build Integrator
     - **Objetivo:** Empacotar Lambda Integrator em ZIP (com BedrockClient, sem MCPClient)
     - **Arquivos:** `packages/integrator.zip` (gerado)
     - **Dependências:** 14.1
@@ -1220,7 +1220,7 @@ Este plano implementa a substituição da camada MCP pela integração direta co
     - **Critério de conclusão:** Integrator empacotado com dependências corretas
     - **Requisitos:** 9.5
 
-  - [ ] 14.3 Verificar ZIPs
+  - [~] 14.3 Verificar ZIPs
     - **Objetivo:** Validar integridade dos pacotes Lambda gerados
     - **Arquivos:** `packages/initializer.zip`, `packages/integrator.zip`
     - **Dependências:** 14.1, 14.2
@@ -1232,7 +1232,7 @@ Este plano implementa a substituição da camada MCP pela integração direta co
     - **Critério de conclusão:** Pacotes Lambda validados
     - **Requisitos:** 14.3
 
-  - [ ] 14.4 Gerar novo Terraform plan
+  - [~] 14.4 Gerar novo Terraform plan
     - **Objetivo:** Gerar plan após build (hashes dos ZIPs atualizados)
     - **Arquivos:** `terraform/` (execução)
     - **Dependências:** 14.3, 7.15
@@ -1245,7 +1245,7 @@ Este plano implementa a substituição da camada MCP pela integração direta co
     - **Requisitos:** 9.11, 15.6
     - **⚠️ Requer:** Acesso AWS real
 
-  - [ ] 14.5 Revisar add/change/destroy/replace no plan
+  - [~] 14.5 Revisar add/change/destroy/replace no plan
     - **Objetivo:** Revisar operações do plan garantindo isolamento da POC MCP
     - **Arquivos:** N/A (revisão de output)
     - **Dependências:** 14.4
@@ -1259,7 +1259,7 @@ Este plano implementa a substituição da camada MCP pela integração direta co
     - **Critério de conclusão:** Plan revisado e aprovado como seguro
     - **Requisitos:** 9.11, 15.6
 
-  - [ ] 14.6 Validar prefixos no plan
+  - [~] 14.6 Validar prefixos no plan
     - **Objetivo:** Confirmar que todos os recursos do plan usam prefixo `connect-bedrock-poc`
     - **Arquivos:** N/A (revisão)
     - **Dependências:** 14.5
@@ -1271,7 +1271,7 @@ Este plano implementa a substituição da camada MCP pela integração direta co
     - **Critério de conclusão:** Prefixos validados
     - **Requisitos:** 9.2, 15.2
 
-  - [ ] 14.7 Validar IAM no plan
+  - [~] 14.7 Validar IAM no plan
     - **Objetivo:** Confirmar que IAM policies incluem `bedrock:InvokeModel` e excluem permissões MCP
     - **Arquivos:** N/A (revisão do plan)
     - **Dependências:** 14.5
@@ -1283,7 +1283,7 @@ Este plano implementa a substituição da camada MCP pela integração direta co
     - **Critério de conclusão:** Permissões IAM validadas no plan
     - **Requisitos:** 9.5, 9.8, 11.3
 
-  - [ ] 14.8 Obter autorização explícita para apply
+  - [~] 14.8 Obter autorização explícita para apply
     - **Objetivo:** Receber aprovação do operador antes de executar `terraform apply`
     - **Arquivos:** N/A
     - **Dependências:** 14.5, 14.6, 14.7
@@ -1296,7 +1296,7 @@ Este plano implementa a substituição da camada MCP pela integração direta co
     - **Requisitos:** 15.5
     - **⚠️ AUTORIZAÇÃO NECESSÁRIA:** Não prosseguir sem aprovação
 
-  - [ ] 14.9 Executar apply
+  - [~] 14.9 Executar apply
     - **Objetivo:** Aplicar plan autorizado
     - **Arquivos:** N/A (execução Terraform)
     - **Dependências:** 14.8
@@ -1310,7 +1310,7 @@ Este plano implementa a substituição da camada MCP pela integração direta co
     - **⚠️ AUTORIZAÇÃO NECESSÁRIA:** Só executar após aprovação em 14.8
     - **⚠️ Requer:** Acesso AWS real
 
-  - [ ] 14.10 Verificação pós-deploy
+  - [~] 14.10 Verificação pós-deploy
     - **Objetivo:** Confirmar que recursos foram criados corretamente
     - **Arquivos:** N/A (verificação AWS)
     - **Dependências:** 14.9
@@ -1325,7 +1325,7 @@ Este plano implementa a substituição da camada MCP pela integração direta co
     - **Critério de conclusão:** Deploy validado
     - **Requisitos:** 9.10
 
-  - [ ] 14.11 Executar smoke test real pós-deploy
+  - [~] 14.11 Executar smoke test real pós-deploy
     - **Objetivo:** Executar `scripts/smoke_test_bedrock.ps1` contra infraestrutura real
     - **Arquivos:** `scripts/smoke_test_bedrock.ps1`
     - **Dependências:** 14.10
@@ -1339,7 +1339,7 @@ Este plano implementa a substituição da camada MCP pela integração direta co
     - **Requisitos:** 13.7
     - **⚠️ Requer:** Acesso AWS real + infraestrutura provisionada
 
-  - [ ] 14.12 Validação de logs pós-deploy
+  - [~] 14.12 Validação de logs pós-deploy
     - **Objetivo:** Verificar que logs do CloudWatch estão formatados corretamente
     - **Arquivos:** N/A (verificação CloudWatch)
     - **Dependências:** 14.11
@@ -1356,7 +1356,7 @@ Este plano implementa a substituição da camada MCP pela integração direta co
 ### Fase 8 — Contact Flow e Chat Real
 
 - [ ] 15. Configurar e testar chat real
-  - [ ] 15.1 Criar/duplicar Contact Flow separado para POC Bedrock
+  - [~] 15.1 Criar/duplicar Contact Flow separado para POC Bedrock
     - **Objetivo:** Ter Contact Flow dedicado à POC Bedrock sem modificar flow MCP
     - **Arquivos:** N/A (Amazon Connect Console ou Terraform)
     - **Dependências:** 14.10 (deploy concluído)
@@ -1368,7 +1368,7 @@ Este plano implementa a substituição da camada MCP pela integração direta co
     - **Critério de conclusão:** Contact Flow separado criado
     - **Requisitos:** 9.3, 15.3
 
-  - [ ] 15.2 Associar Contact Flow com Bedrock Initializer
+  - [~] 15.2 Associar Contact Flow com Bedrock Initializer
     - **Objetivo:** Configurar flow para invocar a Lambda Initializer da POC Bedrock
     - **Arquivos:** N/A (Amazon Connect Console)
     - **Dependências:** 15.1
@@ -1380,7 +1380,7 @@ Este plano implementa a substituição da camada MCP pela integração direta co
     - **Critério de conclusão:** Flow conectado ao Initializer correto
     - **Requisitos:** 9.3
 
-  - [ ] 15.3 Validar retorno SUCCESS do Initializer
+  - [~] 15.3 Validar retorno SUCCESS do Initializer
     - **Objetivo:** Confirmar que Initializer retorna status SUCCESS ao Contact Flow
     - **Arquivos:** N/A (teste funcional)
     - **Dependências:** 15.2
@@ -1393,7 +1393,7 @@ Este plano implementa a substituição da camada MCP pela integração direta co
     - **Requisitos:** 9.10
     - **⚠️ Requer:** Acesso AWS real + Contact Flow configurado
 
-  - [ ] 15.4 Validar timeout do Initializer
+  - [~] 15.4 Validar timeout do Initializer
     - **Objetivo:** Confirmar que Initializer completa dentro do timeout de 8s
     - **Arquivos:** N/A (verificação de logs)
     - **Dependências:** 15.3
@@ -1404,7 +1404,7 @@ Este plano implementa a substituição da camada MCP pela integração direta co
     - **Critério de conclusão:** Timeout do Initializer respeitado
     - **Requisitos:** 9.10
 
-  - [ ] 15.5 Publicar Contact Flow Bedrock
+  - [~] 15.5 Publicar Contact Flow Bedrock
     - **Objetivo:** Publicar o flow para torná-lo disponível para testes de chat
     - **Arquivos:** N/A (Amazon Connect Console)
     - **Dependências:** 15.3
@@ -1416,7 +1416,7 @@ Este plano implementa a substituição da camada MCP pela integração direta co
     - **Critério de conclusão:** Flow disponível para chat
     - **Requisitos:** 9.3, 15.3
 
-  - [ ] 15.6 Testar chat real
+  - [~] 15.6 Testar chat real
     - **Objetivo:** Enviar mensagem real via Chat Widget e receber resposta do Bedrock
     - **Arquivos:** N/A (teste manual via Chat Widget)
     - **Dependências:** 15.5, 14.11
@@ -1430,7 +1430,7 @@ Este plano implementa a substituição da camada MCP pela integração direta co
     - **Requisitos:** 3.4
     - **⚠️ Requer:** Acesso AWS real + Chat Widget configurado
 
-  - [ ] 15.7 Validar resposta em português
+  - [~] 15.7 Validar resposta em português
     - **Objetivo:** Confirmar que a resposta do Bedrock está em português brasileiro
     - **Arquivos:** N/A (validação manual)
     - **Dependências:** 15.6
@@ -1442,7 +1442,7 @@ Este plano implementa a substituição da camada MCP pela integração direta co
     - **Critério de conclusão:** Modelo responde em pt-BR conforme system prompt
     - **Requisitos:** 4.2
 
-  - [ ] 15.8 Buscar logs por correlation_id
+  - [~] 15.8 Buscar logs por correlation_id
     - **Objetivo:** Rastrear ciclo completo de uma mensagem via correlation_id nos logs
     - **Arquivos:** N/A (CloudWatch Logs)
     - **Dependências:** 15.6
@@ -1456,7 +1456,7 @@ Este plano implementa a substituição da camada MCP pela integração direta co
     - **Requisitos:** 5.1, 5.3, 5.4
     - **⚠️ Requer:** Acesso AWS real
 
-  - [ ] 15.9 Verificar ausência de FAILED_FINAL
+  - [~] 15.9 Verificar ausência de FAILED_FINAL
     - **Objetivo:** Confirmar que nenhuma mensagem do teste ficou em FAILED_FINAL
     - **Arquivos:** N/A (CloudWatch Logs + DynamoDB)
     - **Dependências:** 15.6
@@ -1468,7 +1468,7 @@ Este plano implementa a substituição da camada MCP pela integração direta co
     - **Critério de conclusão:** Processamento bem-sucedido para todas as mensagens
     - **Requisitos:** 7.2
 
-  - [ ] 15.10 Confirmar POC MCP ainda funcional
+  - [~] 15.10 Confirmar POC MCP ainda funcional
     - **Objetivo:** Verificar que a POC MCP original não foi afetada
     - **Arquivos:** N/A (teste manual via Chat Widget MCP)
     - **Dependências:** 15.6
@@ -1485,7 +1485,7 @@ Este plano implementa a substituição da camada MCP pela integração direta co
 ### Fase 9 — Documentação
 
 - [ ] 16. Criar documentação completa
-  - [ ] 16.1 Atualizar README.md
+  - [~] 16.1 Atualizar README.md
     - **Objetivo:** Atualizar README com arquitetura Bedrock, pré-requisitos, estrutura e quickstart
     - **Arquivos:** `README.md`
     - **Dependências:** 14.10 (deploy concluído), 15.6 (chat funcional)
@@ -1499,7 +1499,7 @@ Este plano implementa a substituição da camada MCP pela integração direta co
     - **Critério de conclusão:** README atualizado para refletir POC Bedrock
     - **Requisitos:** 14.1
 
-  - [ ] 16.2 Criar docs/architecture.md
+  - [~] 16.2 Criar docs/architecture.md
     - **Objetivo:** Documentar arquitetura com diagrama Mermaid e responsabilidades
     - **Arquivos:** `docs/architecture.md` (novo/reescrito)
     - **Dependências:** 14.10
@@ -1512,7 +1512,7 @@ Este plano implementa a substituição da camada MCP pela integração direta co
     - **Critério de conclusão:** Arquitetura documentada com diagrama
     - **Requisitos:** 14.2
 
-  - [ ] 16.3 Criar docs/deployment-guide.md
+  - [~] 16.3 Criar docs/deployment-guide.md
     - **Objetivo:** Documentar passos de deploy com pré-requisitos e verificação
     - **Arquivos:** `docs/deployment-guide.md` (novo/reescrito)
     - **Dependências:** 14.10
@@ -1525,7 +1525,7 @@ Este plano implementa a substituição da camada MCP pela integração direta co
     - **Critério de conclusão:** Deploy guide completo e sequencial
     - **Requisitos:** 14.3
 
-  - [ ] 16.4 Criar docs/testing-strategy.md
+  - [~] 16.4 Criar docs/testing-strategy.md
     - **Objetivo:** Documentar estratégia de testes com comandos e cobertura
     - **Arquivos:** `docs/testing-strategy.md` (novo)
     - **Dependências:** 10.5
@@ -1538,7 +1538,7 @@ Este plano implementa a substituição da camada MCP pela integração direta co
     - **Critério de conclusão:** Estratégia de testes documentada
     - **Requisitos:** 14.4
 
-  - [ ] 16.5 Criar docs/troubleshooting.md
+  - [~] 16.5 Criar docs/troubleshooting.md
     - **Objetivo:** Documentar cenários de erro com sintomas, causas e ações corretivas
     - **Arquivos:** `docs/troubleshooting.md` (reescrito)
     - **Dependências:** 14.10
@@ -1552,7 +1552,7 @@ Este plano implementa a substituição da camada MCP pela integração direta co
     - **Critério de conclusão:** Troubleshooting com mínimo 4 cenários documentados
     - **Requisitos:** 14.5
 
-  - [ ] 16.6 Criar docs/security.md
+  - [~] 16.6 Criar docs/security.md
     - **Objetivo:** Documentar permissões IAM, KMS e regras de sanitização de log
     - **Arquivos:** `docs/security.md` (novo/reescrito)
     - **Dependências:** 14.10
@@ -1565,7 +1565,7 @@ Este plano implementa a substituição da camada MCP pela integração direta co
     - **Critério de conclusão:** Segurança documentada completamente
     - **Requisitos:** 14.6
 
-  - [ ] 16.7 Criar docs/bedrock-converse-flow.md
+  - [~] 16.7 Criar docs/bedrock-converse-flow.md
     - **Objetivo:** Documentar estrutura da requisição Converse API e parsing de resposta
     - **Arquivos:** `docs/bedrock-converse-flow.md` (novo)
     - **Dependências:** 3.5
@@ -1578,7 +1578,7 @@ Este plano implementa a substituição da camada MCP pela integração direta co
     - **Critério de conclusão:** Fluxo Converse documentado com exemplos
     - **Requisitos:** 14.7
 
-  - [ ] 16.8 Criar docs/migration-from-mcp.md
+  - [~] 16.8 Criar docs/migration-from-mcp.md
     - **Objetivo:** Documentar componentes removidos, adicionados e alterados na migração
     - **Arquivos:** `docs/migration-from-mcp.md` (novo)
     - **Dependências:** 5.1, 7.3
@@ -1591,7 +1591,7 @@ Este plano implementa a substituição da camada MCP pela integração direta co
     - **Critério de conclusão:** Migração documentada completamente
     - **Requisitos:** 14.8
 
-  - [ ] 16.9 Criar docs/cost-considerations.md
+  - [~] 16.9 Criar docs/cost-considerations.md
     - **Objetivo:** Estimar custos da Bedrock Converse API com premissas declaradas
     - **Arquivos:** `docs/cost-considerations.md` (novo)
     - **Dependências:** 2.7 (modelo escolhido)
@@ -1605,7 +1605,7 @@ Este plano implementa a substituição da camada MCP pela integração direta co
     - **Requisitos:** 14.9
     - **⚠️ Bloqueado até:** Modelo selecionado (Fase 1)
 
-  - [ ] 16.10 Criar docs/known-limitations.md
+  - [~] 16.10 Criar docs/known-limitations.md
     - **Objetivo:** Listar limitações da POC organizadas por categoria
     - **Arquivos:** `docs/known-limitations.md` (novo)
     - **Dependências:** 15.6 (chat testado)
@@ -1619,7 +1619,7 @@ Este plano implementa a substituição da camada MCP pela integração direta co
     - **Critério de conclusão:** Limitações documentadas por categoria
     - **Requisitos:** 14.10
 
-  - [ ] 16.11 Criar skill connect-bedrock-debugger
+  - [~] 16.11 Criar skill connect-bedrock-debugger
     - **Objetivo:** Criar Kiro skill para debugging do fluxo Bedrock
     - **Arquivos:** `.kiro/skills/connect-bedrock-debugger.md` (novo)
     - **Dependências:** 14.10
@@ -1632,7 +1632,7 @@ Este plano implementa a substituição da camada MCP pela integração direta co
     - **Critério de conclusão:** Skill funcional para debugging
     - **Requisitos:** 14.5
 
-  - [ ] 16.12 Criar steering bedrock-debugging.md
+  - [~] 16.12 Criar steering bedrock-debugging.md
     - **Objetivo:** Criar Kiro steering file para guiar debugging do Bedrock
     - **Arquivos:** `.kiro/steering/bedrock-debugging.md` (novo)
     - **Dependências:** 16.11
@@ -1645,14 +1645,14 @@ Este plano implementa a substituição da camada MCP pela integração direta co
     - **Critério de conclusão:** Guia de debugging criado
     - **Requisitos:** 14.5
 
-- [ ] 17. Checkpoint — Documentação completa
+- [~] 17. Checkpoint — Documentação completa
   - Ensure all tests pass, ask the user if questions arise.
   - **Critério:** Todos os 12 documentos criados com conteúdo substantivo. Links internos funcionais.
 
 ### Fase 10 — Encerramento
 
 - [ ] 18. Encerrar POC e obter autorização
-  - [ ] 18.1 Revisar git diff
+  - [~] 18.1 Revisar git diff
     - **Objetivo:** Revisar todas as alterações realizadas antes de commit
     - **Arquivos:** N/A (git)
     - **Dependências:** 17 (Checkpoint documentação)
@@ -1665,7 +1665,7 @@ Este plano implementa a substituição da camada MCP pela integração direta co
     - **Critério de conclusão:** Alterações revisadas e aprovadas
     - **Requisitos:** 15.4, 15.5
 
-  - [ ] 18.2 Executar suíte completa de testes
+  - [~] 18.2 Executar suíte completa de testes
     - **Objetivo:** Rodar todos os testes uma última vez para confirmação final
     - **Arquivos:** N/A (execução pytest)
     - **Dependências:** 18.1
@@ -1677,7 +1677,7 @@ Este plano implementa a substituição da camada MCP pela integração direta co
     - **Critério de conclusão:** Todos os testes passam na versão final
     - **Requisitos:** 12.1–12.10
 
-  - [ ] 18.3 Validar links da documentação
+  - [~] 18.3 Validar links da documentação
     - **Objetivo:** Verificar que links internos entre documentos funcionam
     - **Arquivos:** `docs/*.md`, `README.md`
     - **Dependências:** 16.1–16.12
@@ -1689,7 +1689,7 @@ Este plano implementa a substituição da camada MCP pela integração direta co
     - **Critério de conclusão:** Documentação com links válidos
     - **Requisitos:** 14.1–14.10
 
-  - [ ] 18.4 Revisar Terraform plan final
+  - [~] 18.4 Revisar Terraform plan final
     - **Objetivo:** Gerar plan final e confirmar estado limpo
     - **Arquivos:** N/A (Terraform)
     - **Dependências:** 18.1
@@ -1702,7 +1702,7 @@ Este plano implementa a substituição da camada MCP pela integração direta co
     - **Requisitos:** 9.11, 15.6
     - **⚠️ Requer:** Acesso AWS real
 
-  - [ ] 18.5 Registrar modelo escolhido
+  - [~] 18.5 Registrar modelo escolhido
     - **Objetivo:** Documentar formalmente o modelo usado na POC com evidências finais
     - **Arquivos:** `docs/model-selection-evidence.md`
     - **Dependências:** 2.9, 14.11
@@ -1714,7 +1714,7 @@ Este plano implementa a substituição da camada MCP pela integração direta co
     - **Critério de conclusão:** Modelo documentado com evidência de funcionamento
     - **Requisitos:** 10.3
 
-  - [ ] 18.6 Registrar latência medida
+  - [~] 18.6 Registrar latência medida
     - **Objetivo:** Documentar latência medida no ambiente real (não estimativa)
     - **Arquivos:** `docs/model-selection-evidence.md`
     - **Dependências:** 14.11, 15.6
@@ -1727,7 +1727,7 @@ Este plano implementa a substituição da camada MCP pela integração direta co
     - **Critério de conclusão:** Latência real registrada com evidência
     - **Requisitos:** 10.3
 
-  - [ ] 18.7 Registrar limitações encontradas
+  - [~] 18.7 Registrar limitações encontradas
     - **Objetivo:** Atualizar known-limitations.md com limitações descobertas durante implementação
     - **Arquivos:** `docs/known-limitations.md`
     - **Dependências:** 15.6
@@ -1739,7 +1739,7 @@ Este plano implementa a substituição da camada MCP pela integração direta co
     - **Critério de conclusão:** Limitações refletem experiência real da implementação
     - **Requisitos:** 14.10
 
-  - [ ] 18.8 Obter autorização para commit
+  - [~] 18.8 Obter autorização para commit
     - **Objetivo:** Receber aprovação explícita para criar commit com todas as alterações
     - **Arquivos:** N/A
     - **Dependências:** 18.1, 18.2, 18.3
@@ -1752,7 +1752,7 @@ Este plano implementa a substituição da camada MCP pela integração direta co
     - **Requisitos:** 15.5
     - **⚠️ AUTORIZAÇÃO NECESSÁRIA:** Não commitar sem aprovação
 
-  - [ ] 18.9 Obter autorização para push
+  - [~] 18.9 Obter autorização para push
     - **Objetivo:** Receber aprovação explícita para push ao repositório remoto
     - **Arquivos:** N/A
     - **Dependências:** 18.8
@@ -1765,7 +1765,7 @@ Este plano implementa a substituição da camada MCP pela integração direta co
     - **Requisitos:** 15.5
     - **⚠️ AUTORIZAÇÃO NECESSÁRIA:** Não fazer push sem aprovação
 
-  - [ ] 18.10 Registrar critérios de aceitação finais
+  - [~] 18.10 Registrar critérios de aceitação finais
     - **Objetivo:** Confirmar que todos os critérios de aceitação foram atendidos
     - **Arquivos:** `docs/acceptance-criteria-final.md` (novo)
     - **Dependências:** 18.2, 18.5, 18.6, 18.7

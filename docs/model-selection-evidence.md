@@ -85,3 +85,60 @@ Apos o deploy, monitorar:
 | Amazon Nova Micro | **SELECIONADO** | Menor custo, latencia baixa, pt-BR funcional |
 | Amazon Nova Lite | Candidato backup | Maior capacidade; usar se Micro nao atender qualidade |
 | Claude 3 Haiku | Nao testado | Requer aceite EULA; avaliar se necessario |
+
+## Teste Ponta a Ponta — Resultado Final
+
+| Item | Valor |
+|------|-------|
+| Data do teste | 2026-07-02 |
+| Contact Flow | connect-bedrock-poc-dev-chat-flow |
+| Widget | connect-bedrock-poc-dev-chat-widget |
+| Contact ID | 81ebc9bb-**** (parcialmente mascarado) |
+| Correlation ID | 20687a22-8c9f-42bf-b38c-83927d97408d |
+| Pergunta | "Qual a capital de Minas Gerais" |
+| Resposta | "Belo Horizonte" (recebida no widget) |
+| Content length | 31 chars |
+| Response length | 260 chars |
+| Latencia Bedrock | 509.2 ms |
+| Latencia total (Initializer + Integrator) | ~5s (inclui cold start) |
+| SQS apos teste | 0 mensagens |
+| DLQ apos teste | 0 mensagens |
+| Erros | Zero (nenhum ERROR, timeout, AccessDenied) |
+| MESSAGEMETADATA | Corretamente ignorado |
+| Roles ignoradas | SYSTEM, CUSTOM_BOT filtrados |
+| Status final | COMPLETED |
+
+### Fluxo confirmado ponta a ponta
+
+```
+Widget → Contact Flow → Initializer (SUCCESS, 2897ms)
+→ StartContactStreaming → SNS → SQS
+→ Integrator → BedrockClient → Converse API (509ms)
+→ Participant Service → resposta no Widget
+```
+
+## Licao Aprendida — Estrutura dos ZIPs
+
+### Problema encontrado
+
+Na primeira tentativa de chat, a Lambda Initializer falhou com:
+```
+Runtime.ImportModuleError: Unable to import module 'initializer.handler': No module named 'initializer'
+```
+
+### Causa raiz
+
+Build manual com `Compress-Archive -Path "src/initializer/*"` coloca arquivos na raiz do ZIP. O handler `initializer.handler.handler` exige que os arquivos estejam dentro do diretorio `initializer/`.
+
+### Correcao
+
+Usar exclusivamente `scripts/build_lambdas.ps1` que preserva a estrutura de diretorios Python:
+- `initializer/handler.py` (nao `handler.py` na raiz)
+- `integrator/handler.py` (nao `handler.py` na raiz)
+- `shared/bedrock_client/...`
+
+### Regra permanente
+
+- NUNCA usar `Compress-Archive` diretamente sobre `src/<modulo>/*`
+- SEMPRE usar `scripts/build_lambdas.ps1`
+- SEMPRE validar imports apos build: `import initializer.handler` e `import integrator.handler`

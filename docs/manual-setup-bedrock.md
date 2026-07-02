@@ -90,9 +90,11 @@ aws bedrock list-foundation-models --region us-east-1 \
 
 | Modelo | Prioridade | Motivo |
 |--------|-----------|--------|
-| Amazon Nova Lite | 1 | Baixo custo, baixa latência, sem EULA adicional |
-| Amazon Nova Micro | 2 | Custo mínimo, verificar qualidade em pt-BR |
+| Amazon Nova Micro | **SELECIONADO** | Menor custo, validado com 238ms latencia, pt-BR funcional |
+| Amazon Nova Lite | Backup | Maior capacidade; usar se Micro nao atender qualidade |
 | Claude 3 Haiku | 3 | Boa qualidade, requer aceite de EULA |
+
+> **Resultado da Fase 1:** O modelo `amazon.nova-micro-v1:0` foi validado em us-east-1 via smoke test real em 2026-07-02. ARN: `arn:aws:bedrock:us-east-1::foundation-model/amazon.nova-micro-v1:0`. Sem inference profile. Detalhes em `docs/model-selection-evidence.md`.
 
 ### Confirmar suporte à Converse API
 

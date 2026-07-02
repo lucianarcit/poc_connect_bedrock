@@ -7,7 +7,7 @@
 # Isso evita dependência circular (roles ainda não existem quando a chave é criada).
 
 resource "aws_kms_key" "tokens" {
-  description             = "Criptografia de tokens do Amazon Connect para a POC MCP"
+  description             = "Criptografia de tokens do Amazon Connect para a POC Bedrock"
   deletion_window_in_days = 7
   enable_key_rotation     = true
 

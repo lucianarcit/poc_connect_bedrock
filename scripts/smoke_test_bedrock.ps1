@@ -27,7 +27,8 @@ try {
     Write-Host "[PASS] AWS credentials valid" -ForegroundColor Green
     Write-Host "       Account: $($identity.Account)"
     Write-Host "       ARN:     $($identity.Arn)"
-    Write-Host "       Region:  $($env:AWS_REGION ?? 'us-east-1')"
+    $region = if ($env:AWS_REGION) { $env:AWS_REGION } else { "us-east-1" }
+    Write-Host "       Region:  $region"
 } catch {
     Write-Host "[FAIL] AWS credentials not configured" -ForegroundColor Red
     Write-Host "       Run 'aws configure' or set AWS environment variables."

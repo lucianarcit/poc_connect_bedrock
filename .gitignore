@@ -55,3 +55,7 @@ Thumbs.db
 *.log
 
 .venv/
+
+# Terraform plan files (local only, never version)
+terraform/tfplan
+terraform/tfplan.txt

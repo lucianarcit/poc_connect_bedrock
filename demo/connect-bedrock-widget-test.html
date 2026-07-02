@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>POC Bedrock - Chat Widget Test</title>
+    <style>
+        body { font-family: sans-serif; padding: 40px; background: #f5f5f5; }
+        h1 { color: #123456; }
+        .info { background: #fff; padding: 20px; border-radius: 8px; margin: 20px 0; }
+        .warning { background: #fff3e0; padding: 15px; border-left: 4px solid #f57c00; margin: 10px 0; }
+    </style>
+    <!-- Amazon Connect Chat Widget - POC Bedrock -->
+    <script type="text/javascript">
+    (function(w, d, x, id){
+        s=d.createElement('script');
+        s.src='https://mcp-poc-dev.my.connect.aws/connectwidget/static/amazon-connect-chat-interface-client.js';
+        s.async=1;
+        s.id=id;
+        d.getElementsByTagName('head')[0].appendChild(s);
+        w[x] = w[x] || function() { (w[x].ac = w[x].ac || []).push(arguments) };
+    })(window, document, 'amazon_connect', 'dc0a16c3-a81a-4575-b708-130daab4dd0d');
+    amazon_connect('styles', {
+        iconType: 'CHAT',
+        openChat: { color: '#ffffff', backgroundColor: '#123456' },
+        closeChat: { color: '#ffffff', backgroundColor: '#123456'}
+    });
+    amazon_connect('snippetId', 'QVFJREFIaEZ5ZjhlbTkwTGlJQ0RQVlozbFpkalBOMm91NWh2aGNUZHZhTTZac1lEMndGcDNRbFNhVUdYZzJQanUyc0N5U1ZXQUFBQWJqQnNCZ2txaGtpRzl3MEJCd2FnWHpCZEFnRUFNRmdHQ1NxR1NJYjNEUUVIQVRBZUJnbGdoa2dCWlFNRUFTNHdFUVFNTklDOEJTcmpOTENjdmtJZEFnRVFnQ3ZrdmJtV1BhQkk1TFc3bm9tRHJCelNUQlQxNTE4TG5SbnYwR0xOUnpMMm9uRmhUTU43YnhYZkw1dkk6OlJoUWVTV29tQzIxQ3VMTWVZRE5pcDF1RlJiQXJma21KM3F4c2NnYTlCeWQzbCsvVjVFaVArZGZqbERlRlFEaTd4c3J6Q0xBdjJoNDFtc1VnKzQwK3RnVDFzeDgzTDArWXpaRnNER2JqZG5hMDI1bVoyV2NHQklYWndqM3FEaFN0WGpqWWRucU1nMk5FSEw0WUhWMTJURWJLS3ZKZHkwVT0=');
+    amazon_connect('supportedMessagingContentTypes', [
+        'text/plain',
+        'text/markdown',
+        'application/vnd.amazonaws.connect.message.interactive',
+        'application/vnd.amazonaws.connect.message.interactive.response'
+    ]);
+    </script>
+</head>
+<body>
+    <h1>POC Bedrock Converse - Chat Test</h1>
+    <div class="info">
+        <p><strong>Contact Flow:</strong> connect-bedrock-poc-dev-chat-flow</p>
+        <p><strong>Modelo:</strong> amazon.nova-micro-v1:0</p>
+        <p><strong>Widget:</strong> connect-bedrock-poc-dev-chat-widget</p>
+    </div>
+    <div class="warning">
+        <strong>Instrucoes:</strong>
+        <ol>
+            <li>Clique no icone de chat (canto inferior direito)</li>
+            <li>Envie: "Qual e a capital do Brasil? Responda em uma frase."</li>
+            <li>Aguarde a resposta do Bedrock (ate 30s)</li>
+            <li>Registre o resultado</li>
+        </ol>
+    </div>
+    <div class="info">
+        <p><strong>Teste:</strong> Enviar pergunta simples em portugues e verificar resposta do Amazon Nova Micro via pipeline completo.</p>
+    </div>
+</body>
+</html>

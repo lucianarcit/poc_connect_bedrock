@@ -1,55 +1,79 @@
-# Amazon Connect + MCP — POC
+# Amazon Connect + Bedrock Converse — POC
 
-Prova de conceito que integra Amazon Connect (chat) com um servidor MCP (Model Context Protocol) fictício, utilizando AWS Lambda como camada de processamento e Terraform como infraestrutura como código.
+Prova de conceito que integra Amazon Connect (chat) com Amazon Bedrock Converse API, utilizando AWS Lambda como camada de processamento e Terraform como infraestrutura como código.
 
 ## Objetivo
 
 Demonstrar o fluxo completo:
 
 1. Usuário envia pergunta no chat do Amazon Connect
-2. A mensagem trafega por SNS → SQS → Lambda
-3. A Lambda consulta um servidor MCP fictício
-4. A resposta retorna ao mesmo chat
+2. A mensagem trafega por SNS → SQS → Lambda Integrator
+3. A Lambda consulta o Amazon Bedrock (Converse API) com o modelo Amazon Nova Micro
+4. A resposta retorna ao mesmo chat via Participant API
 
-**Sem uso de:** Amazon Q, Amazon Lex, Bedrock ou qualquer LLM.
-**Seleção de tool:** determinística por palavras-chave (sem IA).
+**Modelo utilizado:** `amazon.nova-micro-v1:0`
+**Região:** `us-east-1`
+**Profile AWS:** `connect-poc`
+
+## Arquitetura
+
+```
+Amazon Connect Widget
+  → Contact Flow
+    → Lambda Initializer (setup bot + streaming)
+      → SNS → SQS
+        → Lambda Integrator
+          → Amazon Bedrock Converse API (Nova Micro)
+            → Participant API
+              → Resposta no widget
+```
 
 ## Estrutura do Repositório
 
 ```
-amazon-connect-mcp-poc/
-├── README.md                  # Este arquivo — visão geral do projeto
-├── ARCHITECTURE.md            # Decisões de arquitetura, diagramas, trade-offs
-├── SECURITY.md                # Práticas de segurança e riscos da POC
-├── COSTS.md                   # Estimativa de custos AWS para baixo volume
-├── CHANGELOG.md               # Histórico de alterações por fase
-├── Makefile                   # Comandos make (install, test, lint, build, terraform)
-├── pyproject.toml             # Configuração do projeto Python (deps, pytest, ruff)
-├── requirements-dev.txt       # Dependências para desenvolvimento local
+poc_connect_bedrock/
+├── README.md                  # Este arquivo
+├── ARCHITECTURE.md            # Decisões de arquitetura e diagramas
+├── SECURITY.md                # Práticas de segurança
+├── COSTS.md                   # Estimativa de custos AWS
+├── CHANGELOG.md               # Histórico de alterações
+├── Makefile                   # Comandos make (install, test, lint, build)
+├── pyproject.toml             # Configuração do projeto Python
+├── requirements-dev.txt       # Dependências para desenvolvimento
 ├── .env.example               # Modelo de variáveis de ambiente
-├── .gitignore                 # Arquivos ignorados pelo Git
+├── start_app.bat              # Duplo-clique para iniciar servidor de teste
 │
 ├── docs/                      # Documentações operacionais
-│   ├── amazon-connect-setup.md   # Configuração da instância Connect
-│   ├── contact-flow.md           # Detalhes do Contact Flow
-│   ├── deployment.md             # Guia de deploy (Terraform + Lambdas)
-│   ├── demo-script.md            # Roteiro de demonstração (5-10 min)
-│   ├── troubleshooting.md        # Problemas comuns e soluções
-│   ├── dlq-runbook.md            # Runbook para DLQ (inspeção, redrive)
-│   └── diagrams/                 # Diagramas exportados (PNG, SVG)
+│   ├── como_acessar_app.md      # Guia completo para rodar a app
+│   ├── amazon-connect-setup.md  # Configuração da instância Connect
+│   ├── contact-flow.md          # Detalhes do Contact Flow
+│   ├── deployment.md            # Guia de deploy (Terraform + Lambdas)
+│   ├── troubleshooting.md       # Problemas comuns e soluções
+│   └── dlq-runbook.md           # Runbook para DLQ
 │
-├── sample_documents/          # Documentos fictícios de suporte (JSON)
+├── demo/                      # Página de teste do widget
+│   └── connect-bedrock-widget-test.html
 │
-├── src/                       # Código Python da aplicação
+├── src/                       # Código Python
 │   ├── initializer/              # Lambda Initializer (setup do bot no chat)
-│   ├── integrator/               # Lambda Integrator (processa mensagens)
-│   ├── mcp_server/               # Lambda MCP Server (tools fictícias)
-│   ├── local_chat/               # Modo de teste local (terminal)
-│   └── shared/                   # Código compartilhado (client MCP, crypto, modelos)
+│   ├── integrator/               # Lambda Integrator (processa mensagens + Bedrock)
+│   ├── local_chat/               # Modo de teste local (terminal, usa MCP fictício)
+│   ├── mcp_server/               # Servidor MCP fictício (da POC anterior, mantido como referência)
+│   └── shared/                   # Código compartilhado
+│       ├── bedrock_client/          # Cliente Amazon Bedrock Converse API
+│       ├── mcp_client/             # Cliente MCP (da POC anterior)
+│       └── crypto.py               # Criptografia KMS
 │
-├── terraform/                 # Infraestrutura como código (Terraform)
+├── terraform/                 # Infraestrutura como código
 │
-├── scripts/                   # Scripts de build, deploy, validação e limpeza
+├── scripts/                   # Scripts de build, validação e execução
+│   ├── build_lambdas.ps1        # Build dos pacotes Lambda
+│   ├── validate_infra.ps1       # Validação da infra AWS
+│   ├── start_app.ps1            # Inicia servidor + abre navegador
+│   ├── smoke_test_bedrock.ps1   # Teste de conectividade com Bedrock
+│   └── serve_demo.py            # Servidor HTTP para o widget
+│
+├── packages/                  # ZIPs das Lambdas (gerados pelo build)
 │
 └── tests/                     # Testes unitários e de integração (pytest)
 ```
@@ -58,116 +82,84 @@ amazon-connect-mcp-poc/
 
 - Python 3.12+
 - Terraform >= 1.6
-- AWS CLI configurado
-- Conta AWS com Amazon Connect habilitado
+- AWS CLI configurado (profile `connect-poc`)
+- Conta AWS com Amazon Connect habilitado e modelo Bedrock ativado
 
-## Execução Local
+## Início Rápido
 
-O chat local permite testar o fluxo MCP completo sem infraestrutura AWS.
+```powershell
+# 1. Ativar venv
+.venv\Scripts\Activate.ps1
 
-### Modo direto (sem servidor HTTP)
+# 2. Instalar dependências
+pip install -r requirements-dev.txt
 
-```bash
-cd src
-python -m local_chat --direct
+# 3. Validar infra AWS
+powershell -File scripts/validate_infra.ps1
+
+# 4. Iniciar app de teste
+powershell -File scripts/start_app.ps1
+# Ou: duplo-clique em start_app.bat
 ```
 
-Chama as tools MCP diretamente em memória. Não requer servidor rodando.
+## Teste Ponta a Ponta (Widget)
 
-### Modo com servidor MCP local
+1. Execute `start_app.bat` ou `powershell -File scripts/start_app.ps1`
+2. O navegador abre em `http://localhost:8080/connect-bedrock-widget-test.html`
+3. Clique no ícone de chat (canto inferior direito)
+4. Envie uma pergunta (ex: "Qual é a capital do Brasil?")
+5. Aguarde a resposta do Bedrock (até 30s)
 
-Terminal 1 — iniciar o servidor:
-```bash
-cd src
-python -m mcp_server.local
+**Requisitos:** Infra AWS de pé (execute `validate_infra.ps1` antes).
+
+## Testes Unitários
+
+```powershell
+pytest                    # roda testes com cobertura (gate 80%)
+ruff check src/ tests/    # lint
+ruff format src/ tests/   # formata
 ```
 
-Terminal 2 — iniciar o chat:
-```bash
-cd src
-python -m local_chat --server-url http://localhost:8000/mcp
+**Cobertura mínima exigida:** 80%
+
+## Deploy da Infraestrutura
+
+```powershell
+# Build dos pacotes Lambda
+powershell -File scripts/build_lambdas.ps1
+
+# Terraform
+$env:AWS_PROFILE = "connect-poc"
+cd terraform
+terraform init
+terraform plan
+terraform apply  # requer autorização explícita
 ```
-
-### Exemplo de interação
-
-```
-Você: como redefinir minha senha
-Bot: Redefinição de senha (DOC-001)
-     1. Acesse a tela de login do sistema.
-     2. Clique em 'Esqueci minha senha'.
-     ...
-
-Você: qual o status
-Bot: Status: healthy
-     Documentos carregados: 5
-
-Você: falar com atendente
-Bot: Entendido! Vou transferir você para um atendente humano.
-
-Você: sair
-Bot: Até logo!
-```
-
-## Testes
-
-```bash
-# Instalar dependências
-python -m pip install -r requirements-dev.txt
-
-# Executar testes com cobertura
-python -m pytest
-
-# Executar testes verbose
-python -m pytest -v
-
-# Somente um módulo
-python -m pytest tests/unit/test_mcp_tools.py -v
-```
-
-**Cobertura mínima exigida:** 80% (configurado em `pyproject.toml`).
-
-**Cobertura atual:** 80.41% (86 testes).
 
 ## Dependências Principais
 
 | Pacote | Versão | Papel |
 |--------|--------|-------|
-| `mcp` | 1.28.0 | SDK oficial MCP (FastMCP, Streamable HTTP) |
-| `mangum` | >=0.17.0 | Adaptador ASGI → Lambda handler |
-| `httpx` | >=0.27.0 | HTTP client para chamadas MCP |
-| `boto3` | >=1.34.0 | SDK AWS (usado nas Lambdas) |
+| `boto3` | >=1.34.0 | SDK AWS (Bedrock, Connect, DynamoDB, KMS) |
 | `pydantic` | >=2.0.0 | Validação de modelos |
+| `pytest` | >=8.0.0 | Testes |
+| `moto` | >=5.0.0 | Mock AWS para testes |
 
-## Limitações Conhecidas (MCP SDK v1.28.0)
+## Documentação
 
-1. **Proteção DNS rebinding** — O SDK rejeita requests cujo header `Host` não seja localhost (retorna HTTP 421). Em testes, é necessário configurar `TransportSecuritySettings` com `allowed_hosts` explícitos. Em produção (Lambda Function URL), o host real é aceito.
-
-2. **Header Accept obrigatório** — O endpoint `/mcp` exige `Accept: application/json`. Requests sem esse header recebem HTTP 406 Not Acceptable.
-
-3. **Modo stateless** — Com `stateless_http=True`, não há sessão entre requests. Cada chamada JSON-RPC é independente.
-
-4. **json_response=True** — Desabilita SSE (Server-Sent Events). Respostas são JSON puro, compatível com Lambda Function URL + Mangum.
-
-5. **Lifespan ASGI** — O FastMCP usa lifespan events para inicializar o task group. No Lambda (Mangum), configuramos `lifespan="off"`. Em testes, usamos `asgi-lifespan.LifespanManager`.
+- **[Como Acessar a App](docs/como_acessar_app.md)** — Guia completo para rodar localmente
+- [Troubleshooting](docs/troubleshooting.md) — Problemas comuns e soluções
+- [Arquitetura](ARCHITECTURE.md) — Decisões e diagramas
+- [Deploy](docs/deployment.md) — Guia de deploy
+- [DLQ Runbook](docs/dlq-runbook.md) — Inspeção e redrive
 
 ## Status
 
 | Fase | Descrição | Status |
 |------|-----------|--------|
 | 1 | Arquitetura e validação | ✅ Concluída |
-| 2 | MCP local | ✅ Concluída |
-| 3 | Lambdas | ✅ Concluída |
-| 4 | Terraform | ✅ Concluída (fmt/validate/plan pendentes) |
-| 5 | Amazon Connect | 🔲 Pendente |
-| 6 | Documentação | 🔄 Em andamento |
-
-## Documentação
-
-- **[📋 Manual Completo de Implantação](docs/DEPLOYMENT_GUIDE.md)** — Guia passo a passo para deploy, teste e remoção
-- **[🔧 Configuração Amazon Connect](docs/amazon-connect-setup.md)** — POC mínima (bot-only) e handoff humano opcional
-- [Checklist de Deploy](docs/DEPLOYMENT_CHECKLIST.md) — Versão reduzida para impressão
-- [Recursos Manuais](docs/MANUAL_RESOURCES.md) — O que o Terraform NÃO cria
-- [Troubleshooting](docs/troubleshooting.md) — Problemas comuns e soluções
-- [Arquitetura](ARCHITECTURE.md)
-- [Custos](COSTS.md)
-- [DLQ Runbook](docs/dlq-runbook.md)
+| 2 | Lambdas (Initializer + Integrator) | ✅ Concluída |
+| 3 | Bedrock Converse API | ✅ Concluída |
+| 4 | Terraform | ✅ Concluída |
+| 5 | Amazon Connect (Contact Flow + Widget) | ✅ Concluída |
+| 6 | Validação ponta a ponta | ✅ Concluída |

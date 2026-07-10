@@ -1,85 +1,129 @@
-Pré-requisitos
-Python 3.12+
-AWS CLI configurado com o profile connect-poc (para smoke tests e Lambda)
-Terraform (apenas para infra, não para rodar local)
-Setup
+# Como Acessar a App — POC Bedrock Converse
+
+## Pré-requisitos
+
+- Python 3.12+
+- AWS CLI configurado com o profile `connect-poc`
+- Terraform (apenas para infra)
+- Infra AWS de pé (Lambdas, SNS, SQS, DynamoDB)
+
+## Setup Inicial
+
+```powershell
 cd C:\proj\poc_connect_bedrock
 
-# Criar/ativar venv (já existe .venv)
+# Ativar venv
 .venv\Scripts\Activate.ps1
 
 # Instalar dependências
 pip install -r requirements-dev.txt
-Copiar variáveis de ambiente
-copy .env.example .env
-# Preencher os valores no .env (instance ID, ARNs, etc.)
-Rodar localmente
-Há dois modos de chat local disponíveis:
+```
 
-Opção 1: Modo direto (sem servidor HTTP)
-O mais simples — usa os documentos de sample_documents/ diretamente:
+## Credenciais AWS
 
-cd src
-python -m local_chat --direct
-Opção 2: Com servidor MCP local
-Terminal 1 — iniciar o servidor:
+Atualize as credenciais antes de usar:
 
-cd src
-python -m mcp_server.local
-# Sobe em http://localhost:8000/mcp
-Terminal 2 — chat:
+```powershell
+notepad $env:USERPROFILE\.aws\credentials
+```
 
-cd src
-python -m local_chat --server-url http://localhost:8000/mcp
-Testes
-pytest                    # roda testes com cobertura (gate 80%)
-ruff check src/ tests/    # lint
-ruff format src/ tests/   # formata
-Página de Teste (Widget Connect)
-Para testar o fluxo ponta a ponta com o widget do Amazon Connect:
+Verifique se estão válidas:
 
-Terminal 1 — iniciar servidor local:
+```powershell
+aws sts get-caller-identity --profile connect-poc --region us-east-1
+```
 
+## Validar Infraestrutura
+
+Antes de testar, sempre valide se a infra AWS está de pé:
+
+```powershell
+powershell -File scripts/validate_infra.ps1
+```
+
+Se reportar falhas, restaure com:
+
+```powershell
+# 1. Build dos pacotes Lambda
+powershell -File scripts/build_lambdas.ps1
+
+# 2. Terraform
+$env:AWS_PROFILE = "connect-poc"
+cd terraform
+terraform init
+terraform plan
+terraform apply
+```
+
+## Página de Teste (Widget Connect + Bedrock)
+
+Para testar o fluxo ponta a ponta:
+
+**Opção 1 — Script PowerShell (recomendado):**
+
+```powershell
+powershell -File scripts/start_app.ps1
+```
+
+**Opção 2 — Duplo-clique:**
+
+Execute `start_app.bat` na raiz do projeto.
+
+**Opção 3 — Manual:**
+
+```powershell
 python scripts/serve_demo.py
+# Abrir: http://localhost:8080/connect-bedrock-widget-test.html
+```
 
-Abrir no navegador:
+### Instruções de Teste
 
-http://localhost:8080/connect-bedrock-widget-test.html
-
-Instruções:
 1. Clique no ícone de chat (canto inferior direito)
-2. Envie uma mensagem de teste (ex: "Qual é a capital do Brasil?")
+2. Envie uma mensagem (ex: "Qual é a capital do Brasil?")
 3. Aguarde a resposta (até 30s)
 
-Requisitos para o widget funcionar:
-- Infra AWS precisa estar de pé (terraform apply executado)
-- Contact Flow ativo
-- Lambdas deployadas
-- SNS/SQS configurados
-- Credenciais AWS válidas na conta
+### Fluxo Completo
+
+```
+Widget → Contact Flow → Lambda Initializer → SNS → SQS
+  → Lambda Integrator → Amazon Bedrock Converse (Nova Micro)
+    → Participant API → Resposta no Widget
+```
+
+### Requisitos para o Widget Funcionar
+
+- Infra AWS de pé (`validate_infra.ps1` deve passar)
+- Contact Flow ativo no Amazon Connect
+- Lambdas deployadas e com permissões corretas
+- Modelo Bedrock habilitado na conta (amazon.nova-micro-v1:0)
+- Credenciais AWS válidas
 
 Se a infra estiver destruída, o widget abre mas não responde.
 
-Observações
-O local_chat testa o fluxo MCP (POC-01), não o fluxo Bedrock Converse direto (POC-02). O fluxo Bedrock direto exige a infra AWS real (Contact Flow → Lambda → Bedrock).
-Para testar o Bedrock Converse isoladamente, use: powershell -File scripts/smoke_test_bedrock.ps1 (requer credenciais AWS válidas e modelo habilitado na conta).
+## Smoke Test do Bedrock
 
-Para usá-la:
+Para testar a conectividade com o Bedrock isoladamente:
 
-Abra o arquivo diretamente no navegador — basta dar duplo-clique ou:
+```powershell
+powershell -File scripts/smoke_test_bedrock.ps1
+```
 
-python -m local_chat --server-url http://localhost:8000/mcpcd
+Requer credenciais AWS válidas e modelo habilitado na conta.
 
-start demo\connect-bedrock-widget-test.html
-Clique no ícone de chat (canto inferior direito da página)
+## Testes Unitários
 
-Envie uma mensagem de teste como: "Qual é a capital do Brasil? Responda em uma frase."
+```powershell
+pytest                    # testes com cobertura (gate 80%)
+ruff check src/ tests/    # lint
+ruff format src/ tests/   # formata
+```
 
-Aguarde a resposta (até 30s) — ela percorre o fluxo completo: Widget → Contact Flow → Lambda Initializer → SNS → SQS → Lambda Integrator → Bedrock Nova Micro → Participant API → Widget
+## Informações da POC
 
-Requisitos para funcionar:
-
-A infra AWS precisa estar de pé (Lambdas deployadas, Contact Flow ativo, SNS/SQS configurados)
-O widget carrega o script do seu Connect instance (mcp-poc-dev.my.connect.aws)
-Credenciais e permissões IAM corretas na conta
-Se a infra estiver destruída ou parada, o widget vai abrir mas não vai receber resposta. Precisa do terraform apply ter sido executado antes.
+| Item | Valor |
+|------|-------|
+| Modelo | amazon.nova-micro-v1:0 |
+| Região | us-east-1 |
+| Profile AWS | connect-poc |
+| Prefixo recursos | connect-bedrock-poc-dev |
+| Contact Flow | connect-bedrock-poc-dev-chat-flow |

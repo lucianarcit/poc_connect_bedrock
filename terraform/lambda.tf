@@ -24,6 +24,17 @@ resource "aws_lambda_function" "initializer" {
   depends_on = [aws_cloudwatch_log_group.initializer]
 }
 
+# --- Lambda Permission: Allow Amazon Connect to invoke Initializer ---
+
+resource "aws_lambda_permission" "allow_connect_invoke_initializer" {
+  statement_id   = "AllowConnectInvoke"
+  action         = "lambda:InvokeFunction"
+  function_name  = aws_lambda_function.initializer.function_name
+  principal      = "connect.amazonaws.com"
+  source_arn     = "arn:aws:connect:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:instance/${var.connect_instance_id}"
+  source_account = data.aws_caller_identity.current.account_id
+}
+
 # --- Lambda: Integrator (Bedrock Converse) ---
 
 resource "aws_lambda_function" "integrator" {
